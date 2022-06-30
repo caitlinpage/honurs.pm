@@ -1,0 +1,574 @@
+---
+title: "Workflow"
+output: html_notebook
+---
+
+Packages used:
+```{r}
+library(BiocManager)
+library(recount3)
+library(snapcount)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(Gviz)
+
+#for stats
+library(ggpubr)
+library(BSDA)
+```
+
+
+```{r}
+sb <- QueryBuilder(compilation = "tcga", regions = "abcb1")
+sb <- set_coordinate_modifier(sb, Coordinates$Within)
+sb <- set_row_filters(sb, strand == "-") #ABCB1 is encoded on the negative strand - doing this will make defining the exons simpler
+```
+Query for exon data and examine it.
+```{r}
+abcb1.exon <- query_exon(sb)
+dim(abcb1.exon)
+head(abcb1.exon)
+colData(abcb1.exon) #stores the sample metadata
+```
+
+Initially chose to access ovary data by setting a column filter at this stage. This returned 430 samples. However, when examined, a few of these samples proved to be bladder or uterine samples. Therefore, for a more accurate representation of the data, the tumours were subsetted via the metadata.
+
+In total, we have access to just over 11,000 cancer samples through TCGA
+```{r}
+rowRanges(abcb1.exon) #stores information about the genomic position of the reads
+
+
+counts.exon <- as.matrix(assays(abcb1.exon)$raw_counts) #recount3 stores the counts matrix under assay
+```
+
+Here we want to make a condensed dataframe with the raw counts for each exon
+
+ABCB1 Transcript: ENST00000265724.8 Exon definitions https://asia.ensembl.org/Homo_sapiens/Transcript/Exons?db=core;g=ENSG00000085563;r=7:87503859-87713323;t=ENST00000265724
+
+exon 1: 87713323 - 87713161, width = 163 (non-coding UTR)
+#intron1-2:
+#       87713160 - 87601079, width = 112,082
+#fusions occur in this intron (largest intron in the gene), because it is so large, it's not expected that fusions occur at any other point in the gene
+exon 2: 87601078 - 87600755, width = 324 (non-coding UTR)
+
+exon 3: 87600190 - 87600117, width = 74 (translated sequence begins)
+
+exon 4: 87595814 - 87595766, width = 49
+
+exon 5: 87585680 - 87585512, width = 169
+
+exon 6: 87570223 - 87570172, width = 52
+
+exon 7: 87566976 - 87566785, width = 192
+
+exon 8: 87566241 - 87566070, width = 172
+
+exon 9: 87561387 - 87561263, width = 125
+
+exon 10: 87553932 - 87553761, width = 172
+
+exon 11: 87550838 - 87550725, width = 114
+
+exon 12: 87550578 - 87550468, width = 111
+
+exon 13: 87550296 - 87550171, width = 126
+
+exon 14: 87550054 - 87549851, width = 204
+
+exon 15: 87549518 - 87549348, width = 171
+
+exon 16: 87546024 - 87545863, width = 162
+
+exon 17: 87544999 - 87544823, width = 177
+
+exon 18: 87544275 - 87544129, width = 147
+
+exon 19: 87541464 - 87541357, width = 108
+
+exon 20: 87539345 - 87539268, width = 78
+
+#one version of processed (209)transcript starts around 87,537,062
+
+exon 21: 87536541 - 87536458, width = 84
+
+exon 22: 87531497 - 87531294, width = 204
+
+#processed transcript (207) starts 87,531,697
+
+exon 23: 87520776 - 87520876, width = 101
+
+exon 24: 87519466 - 87519326, width = 141
+
+#(203) starts but non coding exon as 5' seq 87,518,963 - ends 
+
+exon 25: 87516665 - 87516509, width = 157
+
+exon 26: 87515428 - 87515231, width = 198
+
+exon 27: 87509481 - 87509275, width = 207
+
+exon 28: 87506043 - 87505897, width = 147
+
+exon 29: 87504449 - 87503859, width = 591 (end of translated sequence and UTR)
+
+-big thing we'd like to do is automate this exon defining process - as yet we've had no luck (see automate_exons.Rmd)
+```{r}
+anno_a <- AnnotationTrack(rowRanges(abcb1.exon), name = "Recount3")
+anno_gtex <- AnnotationTrack(gtex_granges, name = "GTEX")
+
+txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
+txdb
+txTr <- GeneRegionTrack(txdb, chromosome = "chr7", start = 87504243, end = 87600184, name = "Reference")
+
+plotTracks(list(GenomeAxisTrack(), txTr, anno_a, anno_gtex), collapseTranscripts = "longest", add53 = TRUE, add35 = TRUE, littleTicks = TRUE) 
+```
+
+
+```{r}
+counts.byexon <- cbind(colSums(counts.exon[46:49,], na.rm = TRUE), colSums(counts.exon[40:45,], na.rm = TRUE), counts.exon[39,], counts.exon[38,], colSums(counts.exon[36:37,], na.rm = TRUE), counts.exon[35,], counts.exon[34,], counts.exon[33,], counts.exon[32,], counts.exon[31,], counts.exon[30,], counts.exon[29,], counts.exon[28,], counts.exon[26,], counts.exon[25,], colSums(counts.exon[23:24,], na.rm = TRUE), counts.exon[22,], counts.exon[21,], counts.exon[20,], counts.exon[19,], counts.exon[17,], counts.exon[15,], counts.exon[13,], counts.exon[12,], counts.exon[10,], counts.exon[9,], counts.exon[7,], colSums(counts.exon[4:5,], na.rm = TRUE), colSums(counts.exon[1:3,], na.rm = TRUE))
+
+
+colnames(counts.byexon) <- c("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three", "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine")
+
+counts.byexon
+
+tcga_raw_df <- as.data.frame(counts.byexon)
+tcga_raw_df$exonsum_2_29 <- rowSums(tcga_raw_df[, 2:29], na.rm = TRUE)
+tcga_raw_df$one_not_expressed <- tcga_raw_df$one == 0
+#if I have the energy I should go into the colData drug names and recode them - make my life easier
+tcga_raw_df$treatment <- colData(abcb1.exon)$cgc_drug_therapy_drug_name
+
+#may as well make it match the ovary one
+tcga_raw_df$sum_3_14 <- rowSums(tcga_raw_df[,3:14], na.rm = TRUE)
+tcga_raw_df$norm_one <- tcga_raw_df[, 1]/163
+tcga_raw_df$norm_3_29 <- tcga_raw_df[,30]/4229
+tcga_raw_df$ratio <- tcga_raw_df[,"sum_3_14"]/tcga_raw_df[,"exonsum_2_29"]
+tcga_raw_df$ratio_less <- tcga_raw_df$ratio < 0.2
+tcga_raw_df$sum_15_29 <- rowSums(tcga_raw_df[,15:29], na.rm = TRUE)
+tcga_raw_df$compare_halves <- tcga_raw_df$sum_3_14/tcga_raw_df$sum_15_29
+tcga_raw_df$tcga_id <- colData(abcb1.exon)$gdc_cases.samples.submitter_id
+tcga_raw_df$tumour_location <- colData(abcb1.exon)$cgc_case_primary_site
+tcga_raw_df$tumour_type <- colData(abcb1.exon)$cgc_case_histological_diagnosis
+tcga_raw_df$one_less_two <- ifelse(tcga_raw_df$one < tcga_raw_df$two, T, F)
+tcga_raw_df$total_counts <- rowSums(tcga_raw_df[,1:29], na.rm = TRUE)
+tcga_raw_df
+```
+
+Initially, at this stage in the project I was focussed on being able to graph and interact with the data (Ovary). I graphed exon 1 counts against the sum of exons 2-29, in hopes of highlighting samples with no exon 1 expression and a high sum. I did not actually identify the samples, but I was able to make a similar graph subsetting to the treatment the sample received - as ABCB1 fusions were previously identified in samples treated by chemotherapy, not in primary samples.
+
+From here, I sought to complete the same steps with GTEx data as a point of comparison and control - the samples having come from non-cancer individuals. I was surprised to find similar results in my graphs - with cases of high expression of the gene without the presence of exon 1.
+
+However, I had skipped an important normalisation stage. My first correction of this was to normalise by exon length - which made the visualisation of all exons much clearer. But I had still not normalised for library size.
+
+Recount3 does have a function (transform_counts) which normalising the data by library size (well, by area under coverage - which is ...). However, this function only works when project data is downloaded - which we chose to avoid because we wanted access to one gene across all projects, not all the genes for one project. On top of this, when attempting to run transform counts for downloaded ovary exon data, the function expired citing the dataset being too large. However, I was able to follow the steps the transform_counts function follows, as the area under coverage data is stored in the sample metadata.
+
+```{r}
+tcga_raw_df$auc <- colData(abcb1.exon)[,"auc"]
+tcga_raw_df
+```
+-first step of normalisation - accounting for different library sizes between samples
+```{r}
+tcga_raw_df
+tcga_normalised_df <- tcga_raw_df
+tcga_normalised_df$one <- tcga_normalised_df[,1]/tcga_normalised_df[,45]
+tcga_normalised_df$two <- tcga_normalised_df[,2]/tcga_normalised_df[,45]
+tcga_normalised_df$three <- tcga_normalised_df[,3]/tcga_normalised_df[,45]
+tcga_normalised_df$four <- tcga_normalised_df[,4]/tcga_normalised_df[,45]
+tcga_normalised_df$five <- tcga_normalised_df[,5]/tcga_normalised_df[,45]
+tcga_normalised_df$six <- tcga_normalised_df[,6]/tcga_normalised_df[,45]
+tcga_normalised_df$seven <- tcga_normalised_df[,7]/tcga_normalised_df[,45]
+tcga_normalised_df$eight <- tcga_normalised_df[,8]/tcga_normalised_df[,45]
+tcga_normalised_df$nine <- tcga_normalised_df[,9]/tcga_normalised_df[,45]
+tcga_normalised_df$ten <- tcga_normalised_df[,10]/tcga_normalised_df[,45]
+tcga_normalised_df$eleven <- tcga_normalised_df[,11]/tcga_normalised_df[,45]
+tcga_normalised_df$twelve <- tcga_normalised_df[,12]/tcga_normalised_df[,45]
+tcga_normalised_df$thirteen <- tcga_normalised_df[,13]/tcga_normalised_df[,45]
+tcga_normalised_df$fourteen <- tcga_normalised_df[,14]/tcga_normalised_df[,45]
+tcga_normalised_df$fifteen <- tcga_normalised_df[,15]/tcga_normalised_df[,45]
+tcga_normalised_df$sixteen <- tcga_normalised_df[,16]/tcga_normalised_df[,45]
+tcga_normalised_df$seventeen <- tcga_normalised_df[,17]/tcga_normalised_df[,45]
+tcga_normalised_df$eighteen <- tcga_normalised_df[,18]/tcga_normalised_df[,45]
+tcga_normalised_df$nineteen <- tcga_normalised_df[,19]/tcga_normalised_df[,45]
+tcga_normalised_df$twenty <- tcga_normalised_df[,20]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-one` <- tcga_normalised_df[,21]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-two` <- tcga_normalised_df[,22]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-three` <- tcga_normalised_df[,23]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-four` <- tcga_normalised_df[,24]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-five` <- tcga_normalised_df[,25]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-six` <- tcga_normalised_df[,26]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-seven` <- tcga_normalised_df[,27]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-eight` <- tcga_normalised_df[,28]/tcga_normalised_df[,45]
+tcga_normalised_df$`twenty-nine` <- tcga_normalised_df[,29]/tcga_normalised_df[,45]
+tcga_normalised_df$exonsum_2_29 <- tcga_normalised_df$exonsum_2_29/tcga_normalised_df$auc
+tcga_normalised_df$total_counts <- tcga_normalised_df$total_counts/tcga_normalised_df$auc
+tcga_normalised_df
+```
+
+-second step of normalisation - accounting for the different exon lengths
+```{r}
+tcga_normalised_df <- tcga_normalised_df[,-c(30:45)] *40000000 #40 million is the default library size
+tcga_normalised_df$one <- tcga_normalised_df[,1]/163
+tcga_normalised_df$two <- tcga_normalised_df[,2]/505
+tcga_normalised_df$three <- tcga_normalised_df[,3]/74
+tcga_normalised_df$four <- tcga_normalised_df[,4]/49
+tcga_normalised_df$five <- tcga_normalised_df[,5]/169
+tcga_normalised_df$six <- tcga_normalised_df[,6]/52
+tcga_normalised_df$seven <- tcga_normalised_df[,7]/192
+tcga_normalised_df$eight <- tcga_normalised_df[,8]/172
+tcga_normalised_df$nine <- tcga_normalised_df[,9]/125
+tcga_normalised_df$ten <- tcga_normalised_df[,10]/172
+tcga_normalised_df$eleven <- tcga_normalised_df[,11]/114
+tcga_normalised_df$twelve <- tcga_normalised_df[,12]/111
+tcga_normalised_df$thirteen <- tcga_normalised_df[,13]/126
+tcga_normalised_df$fourteen <- tcga_normalised_df[,14]/204
+tcga_normalised_df$fifteen <- tcga_normalised_df[,15]/171
+tcga_normalised_df$sixteen <- tcga_normalised_df[,16]/162
+tcga_normalised_df$seventeen <- tcga_normalised_df[,17]/177
+tcga_normalised_df$eighteen <- tcga_normalised_df[,18]/147
+tcga_normalised_df$nineteen <- tcga_normalised_df[,19]/108
+tcga_normalised_df$twenty <- tcga_normalised_df[,20]/78
+tcga_normalised_df$`twenty-one` <- tcga_normalised_df[,21]/84
+tcga_normalised_df$`twenty-two` <- tcga_normalised_df[,22]/204
+tcga_normalised_df$`twenty-three` <- tcga_normalised_df[,23]/101
+tcga_normalised_df$`twenty-four` <- tcga_normalised_df[,24]/141
+tcga_normalised_df$`twenty-five` <- tcga_normalised_df[,25]/157
+tcga_normalised_df$`twenty-six` <- tcga_normalised_df[,26]/198
+tcga_normalised_df$`twenty-seven` <- tcga_normalised_df[,27]/207
+tcga_normalised_df$`twenty-eight` <- tcga_normalised_df[,28]/147
+tcga_normalised_df$`twenty-nine` <- tcga_normalised_df[,29]/587
+
+tcga_normalised_df$exonsum_2_29 <- rowSums(tcga_normalised_df[,2:29], na.rm = TRUE)
+tcga_normalised_df$total_counts <- rowSums(tcga_normalised_df[,1:29], na.rm = TRUE)
+tcga_normalised_df$one_and_two <- rowSums(tcga_normalised_df[,1:2], na.rm = TRUE)
+
+tcga_normalised_df$tcga_id <- colData(abcb1.exon)$gdc_cases.samples.submitter_id
+tcga_normalised_df$tissue <- colData(abcb1.exon)$cgc_case_primary_site
+#if I have the energy I should go into the colData drug names and recode them - make my life easier
+tcga_normalised_df$treatment_type <- colData(abcb1.exon)[, "cgc_drug_therapy_pharmaceutical_therapy_type"]
+tcga_normalised_df$treatment <- colData(abcb1.exon)$cgc_drug_therapy_drug_name
+tcga_normalised_df$tumour_type <- colData(abcb1.exon)$cgc_case_histological_diagnosis
+tcga_normalised_df$sample_type <- colData(abcb1.exon)$gdc_cases.samples.sample_type
+tcga_normalised_df$one_less_two <- ifelse(tcga_normalised_df$one < tcga_normalised_df$two, T, F)
+tcga_normalised_df$one_not_expressed <- tcga_normalised_df$one == 0
+
+tcga_normalised_df <- tcga_normalised_df[order(tcga_normalised_df$total_counts, decreasing = TRUE),]
+tcga_normalised_df
+```
+
+#GTEX
+GTEx stored the information differently.
+
+```{r}
+nb <- QueryBuilder(compilation = "gtex", regions = "ABCB1")
+#unlike with tcga, gtex does not allow setting a coordinate modifier or strand filter
+nb <- query_exon(nb)
+nb
+rownames(nb)
+#rowRanges gives us 65 ranges
+ranges(rowRanges(nb)[1:5])
+
+#use same bit as above
+gtex_counts.exon <- as.matrix(assays(nb)$counts)
+gtex_counts.exon
+#test that it works
+colSums(gtex_counts.exon[62:65,], na.rm = TRUE)
+#splitting up exon 1 following the ensembl so exon 1 is ranges 62:65, exon 2 is 41:45 - leaving out 46 because that's in an intron
+gtex_counts.byexon <- cbind(colSums(gtex_counts.exon[c(62:65),], na.rm = TRUE), colSums(gtex_counts.exon[c(41:45),], na.rm = TRUE), gtex_counts.exon[40,], gtex_counts.exon[39,], colSums(gtex_counts.exon[37:38,], na.rm = TRUE), gtex_counts.exon[36,], gtex_counts.exon[35,], gtex_counts.exon[34,], gtex_counts.exon[33,], gtex_counts.exon[32,], gtex_counts.exon[31,], gtex_counts.exon[30,], gtex_counts.exon[29,], gtex_counts.exon[27,], gtex_counts.exon[26,], colSums(gtex_counts.exon[24:25,], na.rm = TRUE), gtex_counts.exon[23,], gtex_counts.exon[22,], gtex_counts.exon[21,], gtex_counts.exon[20,], gtex_counts.exon[18,], gtex_counts.exon[16,], gtex_counts.exon[13,], gtex_counts.exon[12,], gtex_counts.exon[10,], gtex_counts.exon[9,], gtex_counts.exon[7,], colSums(gtex_counts.exon[4:5,], na.rm = TRUE), colSums(gtex_counts.exon[1:3,], na.rm = TRUE))
+
+
+colnames(gtex_counts.byexon) <- c("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three", "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine")
+gtex_counts.byexon
+```
+
+
+```{r}
+gtex_raw_df <- as.data.frame(gtex_counts.byexon)
+gtex_raw_df$exonsum_2_29 <- rowSums(gtex_raw_df[, 2:29], na.rm = TRUE)
+gtex_raw_df$one_and_two <- rowSums(gtex_raw_df[,1:2], na.rm = TRUE)
+gtex_raw_df$mean <- rowMeans(gtex_raw_df[,3:29])
+gtex_raw_df$one_not_expressed <- gtex_raw_df$one == 0
+gtex_raw_df$body_site <- colData(nb)$Body_Site #gives specific body site - location within brain etc
+gtex_raw_df$tissue <- str_extract(gtex_raw_df$body_site, "(\\w+)") #make it more equal to tcga data - just takes the first word from body site - the main tissue
+gtex_raw_df$one_less_two <- ifelse(gtex_raw_df$one < gtex_raw_df$two, T, F)
+
+
+gtex_raw_df$sum_3_14 <- rowSums(gtex_raw_df[,3:14], na.rm = TRUE)
+gtex_raw_df$ratio <- gtex_raw_df[,"sum_3_14"]/gtex_raw_df[,"exonsum_2_29"]
+gtex_raw_df$ratio_less <- gtex_raw_df$ratio < 0.2
+gtex_raw_df$ovary <- gtex_raw_df$body_site == "Ovary"
+gtex_raw_df$total_counts <- rowSums(gtex_raw_df[,1:29], na.rm = TRUE)
+
+
+
+gtex_raw_df$auc <- colData(nb)[, "auc"]
+gtex_raw_df
+```
+
+-normalised by AUC
+```{r}
+gtex_raw_df
+gtex_normalised_df <- gtex_raw_df
+gtex_normalised_df$one <- gtex_normalised_df[,1]/gtex_normalised_df[,42]
+gtex_normalised_df$two <- gtex_normalised_df[,2]/gtex_normalised_df[,42]
+gtex_normalised_df$three <- gtex_normalised_df[,3]/gtex_normalised_df[,42]
+gtex_normalised_df$four <- gtex_normalised_df[,4]/gtex_normalised_df[,42]
+gtex_normalised_df$five <- gtex_normalised_df[,5]/gtex_normalised_df[,42]
+gtex_normalised_df$six <- gtex_normalised_df[,6]/gtex_normalised_df[,42]
+gtex_normalised_df$seven <- gtex_normalised_df[,7]/gtex_normalised_df[,42]
+gtex_normalised_df$eight <- gtex_normalised_df[,8]/gtex_normalised_df[,42]
+gtex_normalised_df$nine <- gtex_normalised_df[,9]/gtex_normalised_df[,42]
+gtex_normalised_df$ten <- gtex_normalised_df[,10]/gtex_normalised_df[,42]
+gtex_normalised_df$eleven <- gtex_normalised_df[,11]/gtex_normalised_df[,42]
+gtex_normalised_df$twelve <- gtex_normalised_df[,12]/gtex_normalised_df[,42]
+gtex_normalised_df$thirteen <- gtex_normalised_df[,13]/gtex_normalised_df[,42]
+gtex_normalised_df$fourteen <- gtex_normalised_df[,14]/gtex_normalised_df[,42]
+gtex_normalised_df$fifteen <- gtex_normalised_df[,15]/gtex_normalised_df[,42]
+gtex_normalised_df$sixteen <- gtex_normalised_df[,16]/gtex_normalised_df[,42]
+gtex_normalised_df$seventeen <- gtex_normalised_df[,17]/gtex_normalised_df[,42]
+gtex_normalised_df$eighteen <- gtex_normalised_df[,18]/gtex_normalised_df[,42]
+gtex_normalised_df$nineteen <- gtex_normalised_df[,19]/gtex_normalised_df[,42]
+gtex_normalised_df$twenty <- gtex_normalised_df[,20]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-one` <- gtex_normalised_df[,21]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-two` <- gtex_normalised_df[,22]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-three` <- gtex_normalised_df[,23]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-four` <- gtex_normalised_df[,24]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-five` <- gtex_normalised_df[,25]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-six` <- gtex_normalised_df[,26]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-seven` <- gtex_normalised_df[,27]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-eight` <- gtex_normalised_df[,28]/gtex_normalised_df[,42]
+gtex_normalised_df$`twenty-nine` <- gtex_normalised_df[,29]/gtex_normalised_df[,42]
+gtex_normalised_df$exonsum_2_29 <- gtex_normalised_df$exonsum_2_29/gtex_normalised_df$auc
+gtex_normalised_df$total_counts <- gtex_normalised_df$total_counts/gtex_normalised_df$auc
+gtex_normalised_df
+```
+
+-normalised by exon length
+```{r}
+gtex_normalised_df <- gtex_normalised_df[,-c(30:42)] *40000000
+gtex_normalised_df$one <- gtex_normalised_df[,1]/163
+gtex_normalised_df$two <- gtex_normalised_df[,2]/505
+gtex_normalised_df$three <- gtex_normalised_df[,3]/74
+gtex_normalised_df$four <- gtex_normalised_df[,4]/49
+gtex_normalised_df$five <- gtex_normalised_df[,5]/169
+gtex_normalised_df$six <- gtex_normalised_df[,6]/52
+gtex_normalised_df$seven <- gtex_normalised_df[,7]/192
+gtex_normalised_df$eight <- gtex_normalised_df[,8]/172
+gtex_normalised_df$nine <- gtex_normalised_df[,9]/125
+gtex_normalised_df$ten <- gtex_normalised_df[,10]/172
+gtex_normalised_df$eleven <- gtex_normalised_df[,11]/114
+gtex_normalised_df$twelve <- gtex_normalised_df[,12]/111
+gtex_normalised_df$thirteen <- gtex_normalised_df[,13]/126
+gtex_normalised_df$fourteen <- gtex_normalised_df[,14]/204
+gtex_normalised_df$fifteen <- gtex_normalised_df[,15]/171
+gtex_normalised_df$sixteen <- gtex_normalised_df[,16]/162
+gtex_normalised_df$seventeen <- gtex_normalised_df[,17]/177
+gtex_normalised_df$eighteen <- gtex_normalised_df[,18]/147
+gtex_normalised_df$nineteen <- gtex_normalised_df[,19]/108
+gtex_normalised_df$twenty <- gtex_normalised_df[,20]/78
+gtex_normalised_df$`twenty-one` <- gtex_normalised_df[,21]/84
+gtex_normalised_df$`twenty-two` <- gtex_normalised_df[,22]/204
+gtex_normalised_df$`twenty-three` <- gtex_normalised_df[,23]/101
+gtex_normalised_df$`twenty-four` <- gtex_normalised_df[,24]/141
+gtex_normalised_df$`twenty-five` <- gtex_normalised_df[,25]/157
+gtex_normalised_df$`twenty-six` <- gtex_normalised_df[,26]/198
+gtex_normalised_df$`twenty-seven` <- gtex_normalised_df[,27]/207
+gtex_normalised_df$`twenty-eight` <- gtex_normalised_df[,28]/147
+gtex_normalised_df$`twenty-nine` <- gtex_normalised_df[,29]/587
+
+gtex_normalised_df$exonsum_2_29 <- rowSums(gtex_normalised_df[,2:29], na.rm = TRUE)
+gtex_normalised_df$total_counts <- rowSums(gtex_normalised_df[,1:29], na.rm = TRUE)
+gtex_normalised_df$one_and_two <- rowSums(gtex_normalised_df[,1:2], na.rm = TRUE)
+gtex_normalised_df$one_not_expressed <- gtex_normalised_df$one == 0
+
+gtex_normalised_df$gtex_id <- colData(nb)$SampleName
+gtex_normalised_df$tissue <- colData(nb)$Histological_Type
+#if I have the energy I should go into the colData drug names and recode them - make my life easier
+gtex_normalised_df$body_site <- colData(nb)$Body_Site
+gtex_normalised_df$one_less_two <- ifelse(gtex_normalised_df$one < gtex_normalised_df$two, T, F)
+gtex_normalised_df$disease <- colData(nb)$Disease
+gtex_normalised_df$sex <- colData(nb)$Sex
+gtex_normalised_df$age <- colData(nb)$AGE
+gtex_normalised_df$DTHFUCOD <- colData(nb)$DTHFUCOD
+gtex_normalised_df$DTHLUCOD <- colData(nb)$DTHLUCOD
+gtex_normalised_df$DTHMNNR <- colData(nb)$DTHMNNR
+gtex_normalised_df$DTHCOD <- colData(nb)$DTHCOD
+gtex_normalised_df <- gtex_normalised_df[order(gtex_normalised_df$total_counts, decreasing = TRUE),]
+gtex_normalised_df
+```
+
+
+#OVARY
+
+```{r}
+tcga_ovary_df <- subset(tcga_normalised_df, tissue == "Ovary")
+gtex_ovary_df <- subset(gtex_normalised_df, tissue == "Ovary")
+gtex_fallopian_df <- subset(gtex_normalised_df, tissue == "Fallopian Tube")
+
+tcga_ovary_long <- tcga_ovary_df[-c(30:40)]
+tcga_ovary_long <- data.frame(t(tcga_ovary_long))
+tcga_ovary_long$exon_number <- c(1:29)
+
+gtex_ovary_long <- gtex_ovary_df[-c(30:44)]
+gtex_ovary_long <- data.frame(t(gtex_ovary_long))
+gtex_ovary_long$exon_number <- c(1:29)
+
+gtex_fallopian_long <- gtex_fallopian_df[-c(30:44)]
+gtex_fallopian_long <- data.frame(t(gtex_fallopian_long))
+gtex_fallopian_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_ovary_long %>%
+  melt(id.vars = "exon_number")
+```
+
+
+```{r}
+tcga_ovary_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:-2), limits = c(-18,0))
+
+gtex_ovary_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:-2), limits = c(-18,0))
+
+gtex_fallopian_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:-2), limits = c(-18,0))
+```
+
+-TCGA Ovary analysis
+```{r}
+#TREATED VS UNTREATED
+treatment <- subset(tcga_ovary_df, !is.na(treatment_type))
+treatment <- treatment[, -c(30:40)]
+treatment <- data.frame(t(treatment))
+treatment$exon_number <- c(1:29)
+treatment$exon_number <- as.factor(treatment$exon_number)
+treatment_boxplot <- treatment %>%
+  melt(id.vars = "exon_number")
+
+no_treatment <- subset(tcga_ovary_df, is.na(treatment_type))
+no_treatment <- no_treatment[, -c(30:40)]
+no_treatment <- data.frame(t(no_treatment))
+no_treatment$exon_number <- c(1:29)
+no_treatment$exon_number <- as.factor(no_treatment$exon_number)
+none_boxplot <- no_treatment %>%
+  melt(id.vars = "exon_number")
+
+ggplot(NULL, aes(x = exon_number, y = value)) +
+  geom_boxplot(data = treatment_boxplot, colour = "red", position = position_dodge(1)) +
+  geom_boxplot(data = none_boxplot, colour = "black", position = position_dodge(1)) +
+  theme(legend.position = "right") +
+  labs(title = "Comparison of treated (red) and untreated (black) TCGA Ovary data", 
+       x = "Exon number", 
+       y = "Counts")
+```
+
+```{r}
+cbind(treatment[,-391], no_treatment) %>%
+  melt(id.vars = "exon_number")
+treatment
+no_treatment
+```
+
+
+
+
+##OUTLIERS
+-graphing the tcga ovary data showed a couple of clear outliers
+-rail_63388 exon 1 = 0      total = 6.28       treatment = Cisplatin TCGA-13-0883-01A
+-rail_60851 exon 1 = 0.002  total = 5.21       treatment = Tamoxifen TCGA-61-2110-01A
+                      3rd   total = 2.74 TCGA-61-1721-01A, 4th total = 0.976
+```{r}
+tcga_ovary_df[1:3,]
+```
+
+
+```{r}
+tcga_ovary_mean_long <- data.frame(rowMeans(tcga_ovary_long[,-430]))
+tcga_ovary_mean_long$exon_number <- c(1:29)
+tcga_ovary_mean_long <- melt(tcga_ovary_mean_long, id.vars = "exon_number")
+tcga_ovary_mean_long
+
+tcga_ovary_mean_long %>%
+  ggplot(aes(x = exon_number, y = value)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none")
+
+gtex_ovary_mean_long <- data.frame(rowMeans(gtex_ovary_long[,-109]))
+gtex_ovary_mean_long$exon_number <- c(1:29)
+gtex_ovary_mean_long <- melt(gtex_ovary_mean_long, id.vars = "exon_number")
+
+gtex_ovary_mean_long %>%
+  ggplot(aes(x = exon_number, y = value)) +
+  geom_line() +
+  geom_point()
+
+gtex_fallopian_mean_long <- data.frame(rowMeans(gtex_fallopian_long))
+gtex_fallopian_mean_long$exon_number <- c(1:29)
+gtex_fallopian_mean_long <- melt(gtex_fallopian_mean_long, id.vars = "exon_number")
+
+ggplot(NULL, aes(exon_number, log2(value), group = variable, colour = variable)) +
+  geom_line(data = gtex_ovary_mean_long, size = 2) +
+  geom_point(data = gtex_ovary_mean_long, size = 3) +
+  geom_line(data = tcga_ovary_mean_long, size = 2) +
+  geom_point(data = tcga_ovary_mean_long, size = 3) +
+  geom_line(data = gtex_fallopian_mean_long, size = 2) +
+  geom_point(data = gtex_fallopian_mean_long, size = 3) +
+  geom_line(data = melt(tcga_ovary_long[,c(1:3,430)], id.vars = "exon_number")) +
+  geom_point(data = melt(tcga_ovary_long[,c(1:3,430)], id.vars = "exon_number")) +
+  labs(title = "ABCB1 data: highest expressed TCGA ovary samples, mean TCGA ovary, mean GTEX ovary, and mean GTEX fallopian") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29))
+```
+
+
+```{r}
+tcga_outlier_df <- tcga_ovary_df[1:3, c("tcga_id", "one", "total_counts", "tumour_location", "tumour_type", "treatment")]
+
+rbind(data.frame(t(tcga_outlier_df)), data.frame(t(data.frame(colData(abcb1.exon)[c("rail_63388", "rail_60851", "rail_62767"), c("gdc_file_id", "gdc_cases.samples.sample_type", "gdc_cases.demographic.year_of_birth", "cgc_case_year_of_diagnosis", "cgc_case_tumor_status", "gdc_cases.demographic.year_of_death", "cgc_slide_percent_tumor_nuclei", "cgc_slide_percent_normal_cells", "cgc_slide_percent_tumor_cells", "cgc_slide_percent_necrosis")]))))
+```
+
+
+
+#Interesting metadata
+```{r}
+tcga_outlier_df$sample_type <- colData(abcb1.exon)[, "gdc_cases.samples.sample_type"]
+tcga_outlier_df$born <- colData(abcb1.exon)[, "gdc_cases.demographic.year_of_birth"]
+tcga_outlier_df$diagnosed <- colData(abcb1.exon)[, "cgc_case_year_of_diagnosis"]
+tcga_outlier_df$status <- colData(abcb1.exon)[, "cgc_case_tumor_status"]
+tcga_outlier_df$died <- colData(abcb1.exon)[, "gdc_cases.demographic.year_of_death"]
+tcga_outlier_df$cgc_slide_percent_tumor_nuclei <- colData(abcb1.exon)[, "cgc_slide_percent_tumor_nuclei"]
+tcga_outlier_df$cgc_slide_percent_normal_cells <- colData(abcb1.exon)[, "cgc_slide_percent_normal_cells"]
+tcga_outlier_df$cgc_slide_percent_tumor_cells <- colData(abcb1.exon)[, "cgc_slide_percent_tumor_cells"]
+tcga_outlier_df$cgc_slide_percent_necrosis <- colData(abcb1.exon)[, "cgc_slide_percent_necrosis"]
+tcga_outlier_df
+```
+
+
+```{r}
+distinct(tcga_ovary_df, treatment)
+distinct(tcga_normalised_df, treatment)
+```
+
+
+
+
