@@ -1,0 +1,253 @@
+---
+title: "known_fusions"
+output: html_notebook
+---
+
+
+##KNOWN ABCB1 FUSIONS - VALIDATION
+-paper:
+i.GBM	TCGA-19-2620-01A-01R-1850-01	GTF2IP4--ABCB1
+ii.HNSC	TCGA-BB-7872-01A-11R-2232-07	TP53TG1--ABCB1
+iii.LIHC	TCGA-BC-A10T-01A-11R-A131-07	XRCC5--ABCB1
+iv.LIHC	TCGA-DD-A73F-01A-11R-A32O-07	CAPZA2--ABCB1
+-tumorfusions
+LIHC	TCGA.DD.A73F.01A	CAPZA2::ABCB1	
+LIHC	TCGA.BC.A10T.01A	XRCC5::ABCB1
+
+```{r}
+tcga_normalised_df
+
+#i - rail_69514
+subset(colData(abcb1.exon), 
+       gdc_cases.samples.portions.analytes.aliquots.submitter_id == "TCGA-19-2620-01A-01R-1850-01", 
+       select = c("rail_id", "gdc_cases.samples.submitter_id", "cgc_case_histological_diagnosis", "cgc_drug_therapy_drug_name"))
+#ii - not present
+subset(colData(abcb1.exon), 
+       gdc_cases.samples.portions.analytes.aliquots.submitter_id == "TCGA-BB-7872-01A-11R-2232-07", 
+       select = c("rail_id", "gdc_cases.samples.submitter_id", "cgc_case_histological_diagnosis", "cgc_drug_therapy_drug_name"))
+#iii - rail_61860
+subset(colData(abcb1.exon), 
+       gdc_cases.samples.portions.analytes.aliquots.submitter_id == "TCGA-BC-A10T-01A-11R-A131-07", 
+       select = c("rail_id", "gdc_cases.samples.submitter_id", "cgc_case_histological_diagnosis", "cgc_drug_therapy_drug_name"))
+#iv - rail_60306
+subset(colData(abcb1.exon), 
+       gdc_cases.samples.portions.analytes.aliquots.submitter_id == "TCGA-DD-A73F-01A-11R-A32O-07", 
+       select = c("rail_id", "gdc_cases.samples.submitter_id", "cgc_case_histological_diagnosis", "cgc_drug_therapy_drug_name"))
+
+known.fusions <- tcga_normalised_df[c("rail_69514", "rail_61860", "rail_60306"),]
+known.fusions.liver <- known.fusions[2:3,]
+known.fusions
+known.fusions.liver
+```
+
+```{r}
+known.fusions.liver_long <- known.fusions.liver[-c(30:40)]
+known.fusions.liver_long <- data.frame(t(known.fusions.liver_long))
+known.fusions.liver_long$exon_number <- c(1:29)
+
+tcga_liver_df <- subset(tcga_normalised_df, tissue == "Liver")
+tcga_liver_df
+gtex_liver_df <- subset(gtex_normalised_df, tissue == "Liver")
+gtex_liver_df
+
+tcga_liver_long <- tcga_liver_df[-c(30:40)]
+tcga_liver_long <- data.frame(t(tcga_liver_long))
+tcga_liver_long$exon_number <- c(1:29)
+
+gtex_liver_long <- gtex_liver_df[-c(30:47)]
+gtex_liver_long <- data.frame(t(gtex_liver_long))
+gtex_liver_long$exon_number <- c(1:29)
+```
+
+
+
+
+
+```{r}
+known.fusions.liver_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:2), limits = c(-16,3))
+
+tcga_liver_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:2), limits = c(-16,3)) +
+  labs(title = "TCGA Liver data")
+
+gtex_liver_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:2), limits = c(-16,3)) +
+  labs(title = "GTEx Liver data")
+```
+
+```{r}
+
+graph.known <- melt(known.fusions.liver_long, id.vars = "exon_number")
+graph.liver <- melt(tcga_liver_long, id.vars = "exon_number")
+
+ggplot(graph.liver, aes(x = exon_number, y = log2(value), group = variable)) +
+  geom_line() +
+  geom_point() +
+  geom_line(data = graph.known, colour = "red") +
+  geom_point(data = graph.known, colour = "red") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:2), limits = c(-16,3)) 
+
+ggplot(graph.liver, aes(x = exon_number, y = value, group = variable)) +
+  geom_line() +
+  geom_point() +
+  geom_line(data = graph.known, colour = "red") +
+  geom_point(data = graph.known, colour = "red") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) 
+```
+
+
+```{r}
+rbind(data.frame(t(known.fusions.liver[, c("tcga_id", "one", "total_counts", "tissue", "tumour_type", "treatment")])),
+data.frame(t(data.frame(colData(abcb1.exon)[c("rail_61860", "rail_60306"), c("gdc_file_id", "gdc_cases.samples.sample_type", "gdc_cases.demographic.year_of_birth", "cgc_case_year_of_diagnosis", "cgc_case_tumor_status", "gdc_cases.demographic.year_of_death", "cgc_slide_percent_tumor_nuclei", "cgc_slide_percent_normal_cells", "cgc_slide_percent_tumor_cells", "cgc_slide_percent_necrosis")]))))
+```
+```{r}
+tcga_liver_df
+```
+
+```{r}
+tcga_liver_mean_long <- data.frame(rowMeans(tcga_liver_long[,-425]))
+tcga_liver_mean_long$exon_number <- c(1:29)
+tcga_liver_mean_long <- melt(tcga_liver_mean_long, id.vars = "exon_number")
+tcga_liver_mean_long
+
+tcga_liver_mean_long %>%
+  ggplot(aes(x = exon_number, y = value)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none")
+
+gtex_liver_mean_long <- data.frame(rowMeans(gtex_liver_long[,-137]))
+gtex_liver_mean_long$exon_number <- c(1:29)
+gtex_liver_mean_long <- melt(gtex_liver_mean_long, id.vars = "exon_number")
+
+gtex_liver_mean_long %>%
+  ggplot(aes(x = exon_number, y = value)) +
+  geom_line() +
+  geom_point()
+
+
+ggplot(NULL, aes(exon_number, log2(value), group = variable, colour = variable)) +
+  geom_line(data = gtex_liver_mean_long, size = 2) +
+  geom_point(data = gtex_liver_mean_long, size = 3) +
+  geom_line(data = tcga_liver_mean_long, size = 2) +
+  geom_point(data = tcga_liver_mean_long, size = 3) +
+  geom_line(data = melt(known.fusions.liver_long, id.vars = "exon_number")) +
+  geom_point(data = melt(known.fusions.liver_long, id.vars = "exon_number")) +
+  labs(title = "ABCB1 data: TCGA Liver fusions, TCGA & GTEx mean") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-14:3), limits = c(-14,3))
+```
+
+#potential fusions vs known fusions
+
+```{r}
+ggplot(NULL, aes(exon_number, log2(value), group = variable, colour = variable)) +
+  geom_line(data = melt(tcga_ovary_long[,c(1:3,430)], id.vars = "exon_number")) +
+  geom_point(data = melt(tcga_ovary_long[,c(1:3,430)], id.vars = "exon_number")) +
+  geom_line(data = melt(known.fusions.liver_long, id.vars = "exon_number"), size = 2) +
+  geom_point(data = melt(known.fusions.liver_long, id.vars = "exon_number"), size = 3) +
+  labs(title = "ABCB1 data: known fusions vs potential fusions") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-14:3), limits = c(-14,3))
+
+ggplot(NULL, aes(exon_number, value, group = variable, colour = variable)) +
+  geom_line(data = melt(tcga_ovary_long[,c(1:3,430)], id.vars = "exon_number")) +
+  geom_point(data = melt(tcga_ovary_long[,c(1:3,430)], id.vars = "exon_number")) +
+  geom_line(data = melt(known.fusions.liver_long, id.vars = "exon_number"), size = 2) +
+  geom_point(data = melt(known.fusions.liver_long, id.vars = "exon_number"), size = 3) +
+  labs(title = "ABCB1 data: known fusions vs potential fusions") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) 
+```
+
+```{r}
+tcga_liver_long[420:424]
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = value, group = variable, colour = variable)) +
+  geom_point() +
+  geom_line() +
+  theme(legend.position = "none")
+
+tcga_liver_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_point() +
+  geom_line() +
+  theme(legend.position = "none")
+```
+
+```{r}
+summary(tcga_liver_df$total_counts)
+tcga_liver_df[c("rail_60306", "rail_61860"),]
+```
+
+
+
+ok want to compare 1-19 to 20-29
+yo so this other known fusion is just to exon 29 - explains why that's more highly expressed - more obvious in raw
+```{r}
+known.fusions.liver$fusion_ratio <- (rowSums(known.fusions.liver[,20:29])/10)/(rowSums(known.fusions.liver[,1:19])/19)
+known.fusions.liver
+
+tcga_liver_df$fusion_ratio <- (rowSums(tcga_liver_df[,20:29])/10)/(rowSums(tcga_liver_df[,1:19])/19)
+tcga_liver_df
+
+summary(known.fusions.liver$fusion_ratio)
+summary(tcga_liver_df$fusion_ratio) #wait hold up are the samples not in with the rest of the liver?
+
+#we normalise stuff with log2
+wilcox.test(known.fusions.liver$fusion_ratio, tcga_liver_df$fusion_ratio)
+
+```
+
+```{r}
+#tcga_liver_df[-c("rail_61660", "rail_70512", "rail_64067"),]
+
+cor.test(tcga_liver_df$fusion_ratio, tcga_liver_df$total_counts, method = "kendall")
+cor.test(tcga_liver_df$fusion_ratio, tcga_liver_df$total_counts, method = "spearman")
+
+cor.test(liver_without_outliers$fusion_ratio, liver_without_outliers$total_counts, method = "kendall")
+cor.test(liver_without_outliers$fusion_ratio, liver_without_outliers$total_counts, method = "spearman")
+```
+
+```{r}
+tcga_liver_df %>%
+  ggplot(aes(x = total_counts, y = fusion_ratio)) +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_y_continuous(limits = c(0,25))
+```
+```{r}
+summary(tcga_liver_df$total_counts)
+tcga_liver_df[order(tcga_liver_df$fusion_ratio, decreasing = TRUE),]
+```
+
+
+
+```{r}
+tcga_raw_df[c("rail_61860", "rail_60306"),]
+```
+
+
+
+
+
+
