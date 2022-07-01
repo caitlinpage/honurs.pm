@@ -1,0 +1,1095 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+##1 vs total
+
+-TCGA
+```{r}
+tcga_normalised_df %>%
+  ggplot(aes(x = log2(one), y = log2(total_counts), colour = tumour_location)) +
+  geom_point() +
+  labs(title = "TCGA ABCB1 expression: exon 1 to total counts, organised by tumour")
+
+tcga_normalised_df %>%
+  ggplot(aes(x = one, y = log2(total_counts), colour = tumour_location)) +
+  geom_point()
+
+tcga_normalised_df %>%
+  ggplot(aes(x = log2(one), y = log2(total_counts), colour = one_less_two)) +
+  geom_point() +
+  facet_wrap(~ tumour_location)
+```
+
+-GTEX
+
+```{r}
+gtex_normalised_df %>%
+  ggplot(aes(x = log2(one), y = log2(total_counts), colour = tissue)) +
+  geom_point()
+
+gtex_normalised_df %>%
+  ggplot(aes(x = one, y = log2(total_counts), colour = tissue)) +
+  geom_point()
+
+gtex_normalised_df %>%
+  ggplot(aes(x = log2(one), y = log2(total_counts), colour = one_less_two)) +
+  geom_point() +
+  facet_wrap(~ tissue)
+```
+
+
+#Boxplots
+-Total expression across cancers
+```{r}
+tcga_normalised_df %>%
+  ggplot(aes(x = tumour_location, y = total_counts, colour = tumour_location)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,150,200), limits = c(0,225))
+
+gtex_normalised_df %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = tissue)) +
+  geom_boxplot() +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) +
+  labs(title = "GTEx Total counts across tissues")
+
+rbind(tcga_normalised_df[,-c(30,32:33,35:40)], gtex_normalised_df[,-c(30,32:34,36:44)]) %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = source)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+tcga_normalised_df$source <- "TCGA"
+gtex_normalised_df$source <- "GTEX"
+tcga_normalised_df$treated <- !is.na(tcga_normalised_df$treatment)
+gtex_normalised_df$treated <- F
+gtex_normalised_df
+tcga_normalised_df
+```
+
+
+```{r}
+combined_df <- rbind(tcga_normalised_df[,-c(30,32:33,35:39)], gtex_normalised_df[,-c(30,32,34,36:44,46)])
+combined_df
+
+```
+
+
+```{r}
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = source)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) 
+
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  filter(one == 0) %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = source)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) 
+#see if I can figure out how to spread it out without losing all the zero's
+
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  filter(one > 0) %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = source)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) 
+
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  ggplot(aes(x = tissue, y = one, colour = source)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+```
+
+```{r}
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  filter(one == 0) %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = source)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) 
+
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  filter(one > 0) %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = source)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) 
+
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  filter(source == "TCGA") %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = one_not_expressed)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) 
+
+#can see a bit of a trend
+#tissues where it's normally expressed in GTEX (adrenal gland, liver, colon, intestine all that stuff) - see higher expression when 1=0
+#tissues where it's not normally expressed - see more of exon 1 expressed
+#similar trend in cancer graph above - where we know cancer is overexpressed - see higher
+#will need to talk about these
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  filter(source == "GTEX") %>%
+  ggplot(aes(x = tissue, y = total_counts, colour = one_not_expressed)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150,175,200,225), limits = c(0,225)) 
+```
+
+
+
+
+
+```{r}
+tcga_ovary_df %>%
+  ggplot(aes(total_counts)) +
+  geom_histogram() +
+  geom_vline(xintercept = mean(tcga_ovary_df$total_counts),        # Add line for mean
+             col = "red",
+             lwd = 1) +
+geom_vline(xintercept = median(tcga_ovary_df$total_counts),      # Add line for median
+             col = "blue",
+             lwd = 1)
+
+combined_df %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  ggplot(aes(x = total_counts, colour = source)) +
+  geom_histogram(fill = "white", position = "dodge") +
+  facet_wrap(~ tissue) 
+#didn't quite work
+```
+
+
+-Total and exon1
+```{r}
+tcga_normalised_df %>%
+  ggplot(aes(x = tumour_location, y = total_counts)) +
+  geom_boxplot() +
+  scale_y_continuous(breaks = c(0,25,50,75,100,150,200), limits = c(0,225))
+
+gtex_normalised_df %>%
+  ggplot(aes(x = tissue, y = total_counts)) +
+  geom_boxplot() +
+  scale_y_continuous(breaks = c(0,25,50,75,100,150,200), limits = c(0,225))
+
+tcga_normalised_df %>%
+  ggplot(aes(x = tumour_location, y = one)) +
+  geom_boxplot() +
+  scale_y_continuous(breaks = c(0, 0.025, 0.05, 0.075, 0.1, 0.15), limits = c(0, 0.175))
+
+gtex_normalised_df %>%
+  ggplot(aes(x = tissue, y = one)) +
+  geom_boxplot() +
+  scale_y_continuous(breaks = c(0, 0.025, 0.05, 0.075, 0.1, 0.15), limits = c(0, 0.175))
+```
+
+```{r}
+combined_df %>%
+  group_by(tissue) %>%
+  summarise_at(vars(total_counts))
+
+combined_df %>%
+  summarise(mean(total_counts))
+
+summary(combined_df[])
+```
+
+
+
+
+##OVARY (+ Fallopian)
+
+```{r}
+tcga_ovary_df <- subset(tcga_normalised_df, tumour_location == "Ovary")
+gtex_ovary_df <- subset(gtex_normalised_df, tissue == "Ovary")
+gtex_fallopian_df <- subset(gtex_normalised_df, tissue == "Fallopian Tube")
+
+tcga_ovary_long <- tcga_ovary_df[-c(30:36)]
+tcga_ovary_long <- data.frame(t(tcga_ovary_long))
+tcga_ovary_long$exon_number <- c(1:29)
+
+gtex_ovary_long <- gtex_ovary_df[-c(30:42)]
+gtex_ovary_long <- data.frame(t(gtex_ovary_long))
+gtex_ovary_long$exon_number <- c(1:29)
+
+gtex_fallopian_long <- gtex_fallopian_df[-c(30:42)]
+gtex_fallopian_long <- data.frame(t(gtex_fallopian_long))
+gtex_fallopian_long$exon_number <- c(1:29)
+```
+
+-graphs
+```{r}
+tcga_ovary_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:-2), limits = c(-18,0))
+
+gtex_ovary_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:-2), limits = c(-18,0))
+
+gtex_fallopian_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:-2), limits = c(-18,0))
+```
+
+##PROSTATE (CHIRSTIE IS INTERESTED IN PROSTATE)
+
+```{r}
+tcga_prostate_df <- subset(tcga_normalised_df, tissue == "Prostate")
+gtex_prostate_df <- subset(gtex_normalised_df, tissue == "Prostate")
+
+tcga_prostate_long <- tcga_prostate_df[-c(30:36)]
+tcga_prostate_long <- data.frame(t(tcga_prostate_long))
+tcga_prostate_long$exon_number <- c(1:29)
+
+gtex_prostate_long <- gtex_prostate_df[-c(30:42)]
+gtex_prostate_long <- data.frame(t(gtex_prostate_long))
+gtex_prostate_long$exon_number <- c(1:29)
+```
+
+```{r}
+summary(tcga_prostate_df$total_counts)
+summary(gtex_prostate_df$total_counts)
+
+tcga_prostate_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,0)) +
+  labs(title = "TCGA Prostate data")
+
+tcga_prostate_long[,c(1:5,559)] %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,0)) +
+  labs(title = "TCGA Prostate data - top 5 total expression")
+
+gtex_prostate_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,0)) +
+  labs(title = "GTEx Prostate data")
+```
+
+##LIVER (PAPER FOUND FUSIONS IN LIVER)
+
+```{r}
+tcga_liver_df <- subset(tcga_normalised_df, tissue == "Liver")
+gtex_liver_df <- subset(gtex_normalised_df, tissue == "Liver")
+
+tcga_liver_long <- tcga_liver_df[-c(30:36)]
+tcga_liver_long <- data.frame(t(tcga_liver_long))
+tcga_liver_long$exon_number <- c(1:29)
+
+gtex_liver_long <- gtex_liver_df[-c(30:42)]
+gtex_liver_long <- data.frame(t(gtex_liver_long))
+gtex_liver_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_liver_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:2), limits = c(-16,3)) +
+  labs(title = "TCGA Liver data")
+
+gtex_liver_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:2), limits = c(-16,3)) +
+  labs(title = "GTEx Liver data")
+```
+##BLOOD (ALICIA IS INTERESTED IN BLOOD)
+
+```{r}
+distinct(tcga_normalised_df, tumour_location)
+distinct(gtex_normalised_df, tissue)
+```
+
+
+```{r}
+tcga_blood_df <- subset(tcga_normalised_df, tissue == "Blood")
+gtex_blood_df <- subset(gtex_normalised_df, tissue == "Blood")
+
+tcga_blood_long <- tcga_blood_df[-c(30:36)]
+tcga_blood_long <- data.frame(t(tcga_blood_long))
+tcga_blood_long$exon_number <- c(1:29)
+
+gtex_blood_long <- gtex_blood_df[-c(30:42)]
+gtex_blood_long <- data.frame(t(gtex_blood_long))
+gtex_blood_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_blood_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:0), limits = c(-17,1)) +
+  labs(title = "TCGA Blood data")
+
+gtex_blood_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:0), limits = c(-17,1)) +
+  labs(title = "GTEx Blood data")
+```
+##BREAST (CHRISTIE ALSO FOUND FUSIONS IN BREAST)
+
+```{r}
+tcga_breast_df <- subset(tcga_normalised_df, tissue == "Breast")
+gtex_breast_df <- subset(gtex_normalised_df, tissue == "Breast")
+
+tcga_breast_long <- tcga_breast_df[-c(30:36)]
+tcga_breast_long <- data.frame(t(tcga_breast_long))
+tcga_breast_long$exon_number <- c(1:29)
+
+gtex_breast_long <- gtex_breast_df[-c(30:42)]
+gtex_breast_long <- data.frame(t(gtex_breast_long))
+gtex_breast_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_breast_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:0), limits = c(-16,1)) +
+  labs(title = "TCGA Breast data")
+
+gtex_breast_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:0), limits = c(-16,1)) +
+  labs(title = "GTEx Breast data")
+```
+##BLADDER (from my lit review list)
+
+```{r}
+tcga_bladder_df <- subset(tcga_normalised_df, tissue == "Bladder")
+gtex_bladder_df <- subset(gtex_normalised_df, tissue == "Bladder")
+
+tcga_bladder_long <- tcga_bladder_df[-c(30:36)]
+tcga_bladder_long <- data.frame(t(tcga_bladder_long))
+tcga_bladder_long$exon_number <- c(1:29)
+
+gtex_bladder_long <- gtex_bladder_df[-c(30:42)]
+gtex_bladder_long <- data.frame(t(gtex_bladder_long))
+gtex_bladder_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_bladder_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:-1), limits = c(-15,-1)) +
+  labs(title = "TCGA Bladder data")
+
+gtex_bladder_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:-1), limits = c(-15,-1)) +
+  labs(title = "GTEx Bladder data")
+```
+```{r}
+tcga_bladder_df
+#top sample rail_66690 TCGA:TCGA-BT-A20W-11A no treatment data
+#total = 7.34, one = 0.018
+```
+
+##TESTIS (lit review)
+
+-hello, this is the first clear outlier since Ovary
+```{r}
+tcga_testis_df <- subset(tcga_normalised_df, tissue == "Testis")
+gtex_testis_df <- subset(gtex_normalised_df, tissue == "Testis")
+
+tcga_testis_long <- tcga_testis_df[-c(30:36)]
+tcga_testis_long <- data.frame(t(tcga_testis_long))
+tcga_testis_long$exon_number <- c(1:29)
+
+gtex_testis_long <- gtex_testis_df[-c(30:42)]
+gtex_testis_long <- data.frame(t(gtex_testis_long))
+gtex_testis_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_testis_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-14:1), limits = c(-15,1)) +
+  labs(title = "TCGA Testis data")
+
+gtex_testis_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-14:1), limits = c(-15,1)) +
+  labs(title = "GTEx Testis data")
+```
+```{r}
+tcga_testis_df
+#rail_67633 TCGA: TCGA-2G-AAG6-01A no treatment data
+#one = 0, total = 33.93
+#rail_63532 TCGA: TCGA-2G-AALO-01A no treatment data
+#one = 0, total = 12.58
+#3rd highest has total of 6
+```
+
+
+##LUNG - lit review
+-another nice outlier sitting on top of the rest
+```{r}
+tcga_lung_df <- subset(tcga_normalised_df, tissue == "Lung")
+gtex_lung_df <- subset(gtex_normalised_df, tissue == "Lung")
+
+tcga_lung_long <- tcga_lung_df[-c(30:36)]
+tcga_lung_long <- data.frame(t(tcga_lung_long))
+tcga_lung_long$exon_number <- c(1:29)
+
+gtex_lung_long <- gtex_lung_df[-c(30:42)]
+gtex_lung_long <- data.frame(t(gtex_lung_long))
+gtex_lung_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_lung_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,1)) +
+  labs(title = "TCGA Lung data")
+
+gtex_lung_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,1)) +
+  labs(title = "GTEx Lung data")
+```
+```{r}
+tcga_lung_df
+#rail_61921, TCGA: TCGA-50-5066-02A, treatment = Avastin
+#one = 0, total = 18.78
+#next highest 11.3 - but less obviously outlier
+```
+
+
+##GASTRIC - from lit review (Stomach)
+
+-wow massively obvious difference between gtex and tcga - lots of tcga much higher
+-also some nice clear outliers from tcga
+
+```{r}
+tcga_stomach_df <- subset(tcga_normalised_df, tissue == "Stomach")
+gtex_stomach_df <- subset(gtex_normalised_df, tissue == "Stomach")
+
+tcga_stomach_long <- tcga_stomach_df[-c(30:36)]
+tcga_stomach_long <- data.frame(t(tcga_stomach_long))
+tcga_stomach_long$exon_number <- c(1:29)
+
+gtex_stomach_long <- gtex_stomach_df[-c(30:42)]
+gtex_stomach_long <- data.frame(t(gtex_stomach_long))
+gtex_stomach_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_stomach_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:1), limits = c(-17,1)) +
+  labs(title = "TCGA Stomach data")
+
+gtex_stomach_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-16:1), limits = c(-17,1)) +
+  labs(title = "GTEx Stomach data")
+```
+```{r}
+tcga_stomach_df
+#basically all the red are outliers - if compare to GTEx
+#rail_64862 TCGA: TCGA-BR-8682-01A treatment = Xeloda
+#one = 0.024, total = 45.46
+#rail_64380 TCGA: TCGA-CG-4436-01A treatment = NA
+# one = 0.0014, total = 31.67
+#2 in 20's, 4 in 10s
+```
+
+
+##CERVICAL - lit review
+-yay got some outliers once again
+```{r}
+tcga_cervix_df <- subset(tcga_normalised_df, tissue == "Cervix")
+gtex_cervix_df <- subset(gtex_normalised_df, tissue == "Cervix Uteri")
+
+tcga_cervix_long <- tcga_cervix_df[-c(30:36)]
+tcga_cervix_long <- data.frame(t(tcga_cervix_long))
+tcga_cervix_long$exon_number <- c(1:29)
+
+gtex_cervix_long <- gtex_cervix_df[-c(30:42)]
+gtex_cervix_long <- data.frame(t(gtex_cervix_long))
+gtex_cervix_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_cervix_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,1)) +
+  labs(title = "TCGA Cervix data")
+
+gtex_cervix_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,1)) +
+  labs(title = "GTEx Cervix data")
+```
+```{r}
+tcga_cervix_df
+#rail_69840 TCGA: TCGA-FU-A3EO-11A no treatment
+#one = 0.0084, total = 14.29
+#rail_63385 TCGA: TCGA-VS-A9V4-01A treatment = Cisplatin
+#one = 0, total = 10.27
+#7, 6, 4, then lots of 2s
+```
+
+
+##KIDNEY - lit review (not in table but should have been maybe)
+-wow got some extreme overexpression compared to gtex
+```{r}
+tcga_kidney_df <- subset(tcga_normalised_df, tissue == "Kidney")
+gtex_kidney_df <- subset(gtex_normalised_df, tissue == "Kidney")
+
+tcga_kidney_long <- tcga_kidney_df[-c(30:36)]
+tcga_kidney_long <- data.frame(t(tcga_kidney_long))
+tcga_kidney_long$exon_number <- c(1:29)
+
+gtex_kidney_long <- gtex_kidney_df[-c(30:42)]
+gtex_kidney_long <- data.frame(t(gtex_kidney_long))
+gtex_kidney_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_kidney_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-13:3), limits = c(-14,4)) +
+  labs(title = "TCGA Kidney data")
+
+gtex_kidney_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-13:3), limits = c(-14,4)) +
+  labs(title = "GTEx Kidney data")
+```
+
+
+
+##UTERUS/VAGINA - not in my lists but because it's close to ovary location wise would like to look - TCGA has uterus, gtex has vagina and uterus
+-doesn't really look like anything interesting happening
+```{r}
+tcga_uterus_df <- subset(tcga_normalised_df, tumour_location == "Uterus")
+gtex_uterus_df <- subset(gtex_normalised_df, tissue == "Uterus")
+
+tcga_uterus_long <- tcga_uterus_df[-c(30:36)]
+tcga_uterus_long <- data.frame(t(tcga_uterus_long))
+tcga_uterus_long$exon_number <- c(1:29)
+
+gtex_uterus_long <- gtex_uterus_df[-c(30:42)]
+gtex_uterus_long <- data.frame(t(gtex_uterus_long))
+gtex_uterus_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_uterus_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:1), limits = c(-16,2)) +
+  labs(title = "TCGA Uterus data")
+
+gtex_uterus_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:1), limits = c(-16,2)) +
+  labs(title = "GTEx Uterus data")
+```
+```{r}
+tcga_normalised_df
+gtex_normalised_df
+```
+
+##Esophagus
+```{r}
+tcga_esophagus_df <- subset(tcga_normalised_df, tissue == "Esophagus")
+gtex_esophagus_df <- subset(gtex_normalised_df, tissue == "Esophagus")
+
+tcga_esophagus_long <- tcga_esophagus_df[,-c(30:40)]
+tcga_esophagus_long <- data.frame(t(tcga_esophagus_long))
+tcga_esophagus_long$exon_number <- c(1:29)
+
+gtex_esophagus_long <- gtex_esophagus_df[,-c(30:47)]
+gtex_esophagus_long <- data.frame(t(gtex_esophagus_long))
+gtex_esophagus_long$exon_number <- c(1:29)
+
+
+tcga_esophagus_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,0)) +
+  labs(title = "TCGA Esophagus cancer data")
+
+gtex_salivary_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,0)) +
+  labs(title = "GTEx Esophagus data")
+```
+```{r}
+tcga_colon_df <- subset(tcga_normalised_df, tissue == "Colorectal")
+gtex_colon_df <- subset(gtex_normalised_df, tissue == "Colon")
+```
+
+
+##Brain
+```{r}
+tcga_brain_df <- subset(tcga_normalised_df, tissue == "Brain")
+gtex_brain_df <- subset(gtex_normalised_df, tissue == "Brain")
+
+tcga_brain_long <- tcga_brain_df[,-c(30:40)]
+tcga_brain_long <- data.frame(t(tcga_brain_long))
+tcga_brain_long$exon_number <- c(1:29)
+
+gtex_brain_long <- gtex_brain_df[,-c(30:47)]
+gtex_brain_long <- data.frame(t(gtex_brain_long))
+gtex_brain_long$exon_number <- c(1:29)
+
+
+tcga_brain_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  labs(title = "TCGA Brain cancer data")
+
+gtex_brain_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  labs(title = "GTEx Brain data")
+```
+##Pancreas
+```{r}
+tcga_pancreas_df <- subset(tcga_normalised_df, tissue == "Pancreas")
+gtex_pancreas_df <- subset(gtex_normalised_df, tissue == "Pancreas")
+
+tcga_pancreas_long <- tcga_pancreas_df[,-c(30:40)]
+tcga_pancreas_long <- data.frame(t(tcga_pancreas_long))
+tcga_pancreas_long$exon_number <- c(1:29)
+
+gtex_pancreas_long <- gtex_pancreas_df[,-c(30:47)]
+gtex_pancreas_long <- data.frame(t(gtex_pancreas_long))
+gtex_pancreas_long$exon_number <- c(1:29)
+
+
+tcga_pancreas_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  labs(title = "TCGA Pancreas cancer data")
+
+gtex_pancreas_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  labs(title = "GTEx Pancreas data")
+```
+##Skin
+```{r}
+tcga_skin_df <- subset(tcga_normalised_df, tissue == "Skin")
+gtex_skin_df <- subset(gtex_normalised_df, tissue == "Skin")
+
+tcga_skin_long <- tcga_skin_df[,-c(30:40)]
+tcga_skin_long <- data.frame(t(tcga_skin_long))
+tcga_skin_long$exon_number <- c(1:29)
+
+gtex_skin_long <- gtex_skin_df[,-c(30:47)]
+gtex_skin_long <- data.frame(t(gtex_skin_long))
+gtex_skin_long$exon_number <- c(1:29)
+
+
+tcga_skin_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  labs(title = "TCGA Skin cancer data")
+
+gtex_skin_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  labs(title = "GTEx Skin data")
+```
+
+
+
+
+
+##HEAD AND NECK - paper had a fusion there
+-theres esophagus data as well in both which is vaguely in head and neck area
+```{r}
+tcga_head_df <- subset(tcga_normalised_df, tumour_location == "Head and Neck")
+gtex_salivary_df <- subset(gtex_normalised_df, tissue == "Salivary Gland")
+
+tcga_head_long <- tcga_head_df[-c(30:36)]
+tcga_head_long <- data.frame(t(tcga_head_long))
+tcga_head_long$exon_number <- c(1:29)
+
+gtex_salivary_long <- gtex_salivary_df[-c(30:42)]
+gtex_salivary_long <- data.frame(t(gtex_salivary_long))
+gtex_salivary_long$exon_number <- c(1:29)
+```
+
+```{r}
+tcga_head_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,0)) +
+  labs(title = "TCGA Head and Neck cancer data")
+
+gtex_salivary_long %>%
+  melt(id.vars = "exon_number") %>%
+  ggplot(aes(x = exon_number, y = log2(value), group = variable, colour = variable)) +
+  geom_line() +
+  geom_point() +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(1:29), limits = c(1,29)) +
+  scale_y_continuous(breaks = c(-15:0), limits = c(-15,0)) +
+  labs(title = "GTEx Salivary Gland data")
+```
+
+```{r}
+tcga_ovary_df %>%
+  ggplot(aes(x = one, y = total_counts)) +
+  geom_point()
+
+gtex_ovary_df %>%
+  ggplot(aes(x = one, y = total_counts)) +
+  geom_point()
+```
+
+```{r}
+distinct(tcga_normalised_df, tumour_location)
+distinct(gtex_normalised_df, tissue)
+```
+
+-kidney
+-adrenal gland
+-liver
+-stomach
+-testis
+-uterus
+-lung
+-cervix
+-breast
+-prostate
+-bladder
+-ovary
+
+
+
+
+
+
+
+
+
