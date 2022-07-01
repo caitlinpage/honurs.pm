@@ -1,0 +1,1027 @@
+---
+title: "Stats"
+output: html_notebook
+---
+
+##time for some stats
+##can you do a t test for one sample???? - because that won't be a mean
+##want to compare exon data, do all the tests for exon 1, exon 2, and maybe for my og definition of exon 1
+let's just do lots of tests and find some stuff
+##ooh also just total exon count so we can get a thing for overexpression
+-potential fusions and known fusions
+-known fusions and gtex
+-potential fusions and gtex
+
+Let's do t tests
+-explanatory (exon)
+-response (mean number of counts - across all the samples)
+-see this doesn't feel like two separate variables
+
+-ooh wait - explanatory is the kind of data: normal, cancer, potential fusion, known fusion
+-response is still number of counts
+-think it's ok that the two groups have different amounts 
+
+t tests require the groups to be normally distributed, and variances to be =
+
+"The test statistic evaluates how well the result observed matches the
+result expected if the null is true"
+
+R struc: t.test(response, explanatory) - not sure if t test is what I want then - doesn't exactly follow the response, explanatory format
+-i think the one  i'm mpst interested in is the response: cancer, potential etc
+#Potential fusions and known fusions
+#this test we actually don't want significant results
+-sum of all exons
+H0: sum(potential) = sum(known)
+H1: sum(potential) /= sum(known)
+-exon 1
+H0: sum(potential) = sum(known)
+H1: sum(potential) /= sum(known)
+-exon 2
+H0: sum(potential) = sum(known)
+H1: sum(potential) /= sum(known)
+
+I think I want z test for the gtex and ovary - lots of samples, and t test for my known and potential?
+
+```{r}
+#First - are the groups normally distributed? Shapiro-Wilk test
+if(!require(devtools)) install.packages("devtools")
+devtools::install_github("kassambara/ggpubr")
+library("ggpubr")
+
+```
+"The central limit theorem tells us that no matter what distribution things have, the sampling distribution tends to be normal if the sample is large enough (n > 30)."
+-well that's a point in my favour
+
+```{r}
+tcga_ovary_df$log2_total_counts <- mutate(tcga_ovary_df, log2_total_counts = log2(total_counts))
+gtex_ovary_df$log2_total_counts <- mutate(gtex_ovary_df, log2_total_counts = log2(total_counts))
+ggdensity(tcga_ovary_df$log2_total_counts) 
+
+ggqqplot(tcga_ovary_df$log2_total_counts)
+t.test(tcga_ovary_df$log2_total_counts, gtex_ovary_df$log2_total_counts, var.equal = FALSE)
+t.test(tcga_ovary_df$total_counts, gtex_ovary_df$total_counts, var.equal = FALSE)
+```
+
+```{r}
+ggplot(tcga_ovary_df, aes(x = log2(total_counts))) +
+  geom_histogram()
+
+ggplot(gtex_ovary_df, aes(x = log2(total_counts))) +
+  geom_histogram()
+
+#shapiro.test(tcga_ovary_df$log2_total_counts)
+
+treatment.na_df <- tcga_ovary_df[is.na(tcga_ovary_df$treatment),]
+treated_df <- tcga_ovary_df[!is.na(tcga_ovary_df$treatment),]
+
+#difference between treated and untreated is not statistically significant
+t.test(treated_df$total_counts, treatment.na_df$total_counts, var.equal = FALSE)
+wilcox.test(treated_df$total_counts, treatment.na_df$total_counts)
+
+
+#Rosner's test: can detect multiple outliers at once, best for large datasets
+
+#library(EnvStats)
+rosner <- rosnerTest(tcga_ovary_df$total_counts, k = 10)
+rosner$all.stats
+
+rosner <- rosnerTest(gtex_ovary_df$total_counts, k = 10)
+rosner$all.stats
+
+#so thought this test was good but actually it says the top 6 results are outliers - I think it's the log transformation that really shows the main ones
+```
+```{r}
+tcga_ovary_df$log2_total_counts = log2(tcga_ovary_df$total_counts)
+tcga_ovary_df
+gtex_ovary_df$log2_total_counts = log2(gtex_ovary_df$total_counts)
+gtex_ovary_df
+
+t.test(tcga_ovary_df$log2_total_counts, gtex_ovary_df$log2_total_counts, var.equal = FALSE)
+
+treatment.na_df <- tcga_ovary_df[is.na(tcga_ovary_df$treatment),]
+treated_df <- tcga_ovary_df[!is.na(tcga_ovary_df$treatment),]
+
+t.test(treated_df$log2_total_counts, treatment.na_df$log2_total_counts, var.equal = FALSE)
+wilcox.test(treated_df$total_counts, treatment.na_df$total_counts)
+#oh here's a thought
+#exon 1 compared to average for the rest
+#I really do just need to stop
+```
+
+```{r}
+summary(tcga_ovary_df$one)
+summary(tcga_ovary_df$three)
+
+summary(gtex_ovary_df$one)
+summary(gtex_ovary_df$three)
+```
+
+so I could do a z test - for exon 1 (expressed) to see how it's different from the complete average of expression
+```{r}
+stats_tcga_ovary_df <- tcga_ovary_df
+#rowMeans(stats_tcga_ovary_df[,-c(30:41)])
+colMeans(stats_tcga_ovary_df[,-c(30:41)])
+mean(colMeans(stats_tcga_ovary_df[,-c(30:41)]))
+mean(colMeans(filter(stats_tcga_ovary_df, one > 0)[,-c(30:41)]))
+mean(colMeans(filter(stats_tcga_ovary_df, one == 0)[,-c(30:41)]))
+
+stats_gtex_ovary_df <- gtex_ovary_df
+#rowMeans(stats_gtex_ovary_df[,-c(30:45)])
+colMeans(stats_gtex_ovary_df[,-c(30:45)])
+mean(colMeans(stats_gtex_ovary_df[,-c(30:45)]))
+mean(colMeans(filter(stats_gtex_ovary_df, one > 0)[,-c(30:45)]))
+mean(colMeans(filter(stats_gtex_ovary_df, one == 0)[,-c(30:45)]))
+```
+so that was getting complicated (and confusing) - what about looking at above a certain threshold - I know that's bad but I just want to look at the interesting stuff when it's actually being expressed
+
+```{r}
+summary(stats_tcga_ovary_df$total_counts)
+summary(stats_gtex_ovary_df$total_counts)
+
+summary(stats_tcga_ovary_df$log2_total_counts)
+summary(stats_gtex_ovary_df$log2_total_counts)
+```
+
+```{r}
+mean(colMeans(filter(stats_tcga_ovary_df, total_counts > 0.290841)[,-c(30:41)]))
+sd(colMeans(filter(stats_tcga_ovary_df, total_counts > 0.290841)[,-c(30:41)]))
+
+colMeans(filter(stats_tcga_ovary_df, total_counts > 0.290841)[,-c(30:41)])
+```
+
+
+```{r}
+#stats_tcga_ovary_df$quartile <- ntile(stats_tcga_ovary_df$total_counts, 4)
+#kruskal.test(total_counts ~ quartile, data = stats_tcga_ovary_df)
+#pairwise.wilcox.test(stats_tcga_ovary_df$total_counts, stats_tcga_ovary_df$quartile,
+                   #  p.adjust.method = "BH")
+kruskal.test(one ~ quartile, data = stats_tcga_ovary_df)
+pairwise.wilcox.test(stats_tcga_ovary_df$one, stats_tcga_ovary_df$quartile,
+                     p.adjust.method = "BH") #tada - this is very good
+```
+
+```{r}
+#stats_gtex_ovary_df$quartile <- ntile(stats_gtex_ovary_df$total_counts, 4)
+#kruskal.test(total_counts ~ quartile, data = stats_gtex_ovary_df)
+#pairwise.wilcox.test(stats_gtex_ovary_df$total_counts, stats_gtex_ovary_df$quartile,
+        #             p.adjust.method = "BH")
+kruskal.test(one ~ quartile, data = stats_gtex_ovary_df)
+pairwise.wilcox.test(stats_gtex_ovary_df$one, stats_gtex_ovary_df$quartile,
+                     p.adjust.method = "BH")
+```
+
+```{r}
+pairwise.wilcox.test(stats_tcga_ovary_df$one, stats_tcga_ovary_df$quartile,
+                     p.adjust.method = "BH")
+pairwise.wilcox.test(stats_gtex_ovary_df$one, stats_gtex_ovary_df$quartile,
+                     p.adjust.method = "BH")
+
+```
+
+```{r}
+stats_tcga_ovary_df %>%
+  filter(quartile == 4) %>% #107
+  filter(one == 0) #41
+41/107 #38%
+
+stats_gtex_ovary_df %>%
+  filter(quartile == 4) %>% #27
+  filter(one == 0) #4
+4/27 #15%
+
+treated_df
+treatment.na_df
+```
+
+
+```{r}
+summary(filter(stats_tcga_ovary_df, quartile == 4)$one)
+summary(filter(stats_tcga_ovary_df, quartile == 3)$one)
+summary(filter(stats_tcga_ovary_df, quartile == 2)$one)
+summary(filter(stats_tcga_ovary_df, quartile == 1)$one)
+wilcox.test(filter(stats_tcga_ovary_df, quartile == 4)$one, filter(stats_tcga_ovary_df, quartile == 3)$one) #nice that worked
+
+stats_tcga_ovary_df$quartile <- as.factor(stats_tcga_ovary_df$quartile)
+stats_tcga_ovary_df %>%
+  ggplot(aes(x = quartile, one)) +
+  geom_boxplot()
+
+stats_tcga_ovary_df %>%
+  ggplot(aes(x = quartile, total_counts)) +
+  geom_boxplot()
+
+stats_gtex_ovary_df$quartile <- as.factor(stats_gtex_ovary_df$quartile)
+stats_gtex_ovary_df %>%
+  ggplot(aes(x = quartile, one)) +
+  geom_boxplot()
+
+stats_gtex_ovary_df %>%
+  ggplot(aes(x = quartile, total_counts)) +
+  geom_boxplot()
+
+
+stats_tcga_ovary_df %>%
+  ggplot(aes(x = quartile, log2(one + 1))) +
+  geom_boxplot()
+
+stats_gtex_ovary_df %>%
+  ggplot(aes(x = quartile, log2(one + 1))) +
+  geom_boxplot()
+```
+```{r}
+stats_tcga_ovary_df %>%
+  ggplot(aes(x = quartile, y = total_counts)) +
+  geom_boxplot() +
+  geom_boxplot(y = one, colour = "red") +
+  scale_y_continuous("Total Counts", sec.axis = sec_axis(name = "One"))
+```
+
+
+maybe can combine one and total by quantile using facet or something
+would be nice to have all 4 in 1 figure
+
+also let's do a correlation because I'm on a roll
+non-normal: Kendall and Spearman
+```{r}
+cor.test(stats_tcga_ovary_df$total_counts, stats_tcga_ovary_df$one, method = "kendall")
+cor.test(stats_tcga_ovary_df$total_counts, stats_tcga_ovary_df$one, method = "spearman")
+
+cor.test(stats_gtex_ovary_df$total_counts, stats_gtex_ovary_df$one, method = "kendall")
+cor.test(stats_gtex_ovary_df$total_counts, stats_gtex_ovary_df$one, method = "spearman")
+```
+
+```{r}
+cor.test(filter(stats_tcga_ovary_df, quartile == 4)$total_counts, filter(stats_tcga_ovary_df, quartile == 4)$one, method = "kendall")
+cor.test(filter(stats_tcga_ovary_df, quartile == 4)$total_counts, filter(stats_tcga_ovary_df, quartile == 4)$one, method = "spearman")
+
+cor.test(filter(stats_gtex_ovary_df, quartile == 4)$total_counts, filter(stats_gtex_ovary_df, quartile == 4)$one, method = "kendall")
+cor.test(filter(stats_gtex_ovary_df, quartile == 4)$total_counts, filter(stats_gtex_ovary_df, quartile == 4)$one, method = "spearman")
+```
+
+```{r}
+stats_tcga_ovary_df %>%
+  ggplot(aes(x = log2(total_counts + 1), y = log2(one + 1), colour = quartile)) +
+  geom_point()
+
+stats_gtex_ovary_df %>%
+  ggplot(aes(x = total_counts, y = one, colour = quartile)) +
+  geom_point()
+
+ggplot(NULL, aes(x = log2(total_counts + 1), y = log2(one + 1), colour = quartile)) +
+  geom_point(data = stats_tcga_ovary_df) +
+  geom_point(data = stats_gtex_ovary_df, shape = "triangle")
+```
+
+```{r}
+stats_tcga_ovary_df
+```
+```{r}
+summary(tcga_ovary_df$total_counts)
+```
+
+
+```{r}
+stats_tcga_ovary_df %>%
+  ggplot(aes(x = quartile, one)) +
+  geom_boxplot()
+
+stats_tcga_ovary_df %>%
+  ggplot(aes(x = quartile, total_counts)) +
+  geom_boxplot() 
+
+stats_gtex_ovary_df %>%
+  ggplot(aes(x = quartile, one)) +
+  geom_boxplot()
+
+stats_gtex_ovary_df %>%
+  ggplot(aes(x = quartile, total_counts)) +
+  geom_boxplot()
+```
+
+```{r}
+stats_gtex_ovary_df$source <- "GTEX"
+stats_tcga_ovary_df$source <- "TCGA"
+```
+
+
+
+```{r}
+stats_tcga_ovary_df
+stats_gtex_ovary_df
+```
+
+
+```{r}
+rbind(stats_tcga_ovary_df[,-c(30,32:33,35:40)], stats_gtex_ovary_df[,-c(30,32:34,36:44)])
+```
+
+
+
+```{r}
+summary(filter(stats_gtex_ovary_df, quartile == 4)$one)
+summary(filter(stats_gtex_ovary_df, quartile == 3)$one)
+summary(filter(stats_gtex_ovary_df, quartile == 2)$one)
+summary(filter(stats_gtex_ovary_df, quartile == 1)$one)
+wilcox.test(filter(stats_gtex_ovary_df, quartile == 4)$one, filter(stats_gtex_ovary_df, quartile == 3)$one) #well that gave different answer to pairwise so...
+```
+
+
+
+```{r}
+wilcox.test(tcga_cervix_df$total_counts, gtex_cervix_df$total_counts)
+wilcox.test(tcga_kidney_df$total_counts, gtex_kidney_df$total_counts)
+wilcox.test(tcga_bladder_df$total_counts, gtex_bladder_df$total_counts)
+wilcox.test(tcga_stomach_df$total_counts, gtex_stomach_df$total_counts)
+wilcox.test(tcga_breast_df$total_counts, gtex_breast_df$total_counts)
+wilcox.test(tcga_liver_df$total_counts, gtex_liver_df$total_counts)
+wilcox.test(tcga_lung_df$total_counts, gtex_lung_df$total_counts)
+wilcox.test(tcga_testis_df$total_counts, gtex_testis_df$total_counts)
+wilcox.test(tcga_blood_df$total_counts, gtex_blood_df$total_counts)
+wilcox.test(tcga_brain_df$total_counts, gtex_brain_df$total_counts)
+wilcox.test(tcga_colon_df$total_counts, gtex_colon_df$total_counts)
+```
+```{r}
+wilcox.test(tcga_lung_df$total_counts, gtex_lung_df$total_counts, alternative = "less")
+wilcox.test(tcga_lung_df$total_counts, gtex_lung_df$total_counts, alternative = "less")
+wilcox.test(tcga_testis_df$total_counts, gtex_testis_df$total_counts, alternative = "less")
+wilcox.test(tcga_blood_df$total_counts, gtex_blood_df$total_counts, alternative = "less") #nope p = 1
+wilcox.test(tcga_breast_df$total_counts, gtex_breast_df$total_counts, alternative = "less")
+wilcox.test(tcga_bladder_df$total_counts, gtex_bladder_df$total_counts, alternative = "less")
+wilcox.test(tcga_cervix_df$total_counts, gtex_cervix_df$total_counts, alternative = "less")
+```
+```{r}
+tcga_colon_df
+gtex_colon_df
+```
+
+
+```{r}
+wilcox.test(tcga_brain_df$total_counts, gtex_brain_df$total_counts, alternative = "greater")
+wilcox.test(tcga_liver_df$total_counts, gtex_liver_df$total_counts, alternative = "greater")
+wilcox.test(tcga_colon_df$total_counts, gtex_colon_df$total_counts, alternative = "greater")
+wilcox.test(tcga_kidney_df$total_counts, gtex_kidney_df$total_counts, alternative = "greater")
+wilcox.test(tcga_stomach_df$total_counts, gtex_stomach_df$total_counts, alternative = "greater") #just over p = 0.05893
+```
+
+```{r}
+select_tcga <- thesis_graph_combined %>%
+  filter(tissue != "NA") %>%
+  filter(tissue != "Adipose Tissue") %>%
+  filter(tissue != "Bile Duct") %>%
+  filter(tissue != "Blood Vessel") %>%
+  filter(tissue != "Bone Marrow") %>%
+  filter(tissue != "Eye") %>%
+  filter(tissue != "Head and Neck") %>%
+  filter(tissue != "Heart") %>%
+  filter(tissue != "Lymph Nodes") %>%
+  filter(tissue != "Mesenchymal") %>%
+  filter(tissue != "Mesothelium") %>%
+  filter(tissue != "Muscle") %>%
+  filter(tissue != "Salivary Gland") %>%
+  filter(tissue != "Spleen") %>%
+  filter(tissue != "Thymus") %>%
+  filter(tissue != "") %>%
+  filter(tissue != "Vagina") %>%
+  filter(tissue != "Adrenal Gland") %>%
+  filter(tissue != "Nerve") %>%
+  filter(tissue != "Nervous System") %>%
+  filter(tissue != "Pituitary") %>%
+  filter(tissue != "Blood") %>%
+  filter(tissue != "Small Intestine") %>%
+  filter(tissue != "Thyroid") %>%
+  filter(tissue != "Fallopian Tube") %>%
+  filter(tissue != "Skin") %>%
+  filter(tissue != "Esophagus") %>% #where it was before decided to reduce even further
+  filter(tissue != "Pancreas") %>%
+  filter(tissue != "Prostate") %>%
+  filter(tissue != "Uterus") %>%
+  filter(source == "TCGA")
+```
+
+
+
+```{r}
+wilcox.test(filter(select_tcga, tissue == "Cervix")$total_counts ~ filter(select_tcga, tissue == "Cervix")$treated)
+wilcox.test(filter(select_tcga, tissue == "Colon/Rectal")$total_counts ~ filter(select_tcga, tissue == "Colon/Rectal")$treated)
+wilcox.test(filter(select_tcga, tissue == "Breast")$total_counts ~ filter(select_tcga, tissue == "Breast")$treated)
+wilcox.test(filter(select_tcga, tissue == "Stomach")$total_counts ~ filter(select_tcga, tissue == "Stomach")$treated)
+wilcox.test(filter(select_tcga, tissue == "Brain")$total_counts ~ filter(select_tcga, tissue == "Brain")$treated)
+wilcox.test(filter(select_tcga, tissue == "Bladder")$total_counts ~ filter(select_tcga, tissue == "Bladder")$treated)
+wilcox.test(filter(select_tcga, tissue == "Kidney")$total_counts ~ filter(select_tcga, tissue == "Kidney")$treated)
+wilcox.test(filter(select_tcga, tissue == "Liver")$total_counts ~ filter(select_tcga, tissue == "Liver")$treated)
+wilcox.test(filter(select_tcga, tissue == "Lung")$total_counts ~ filter(select_tcga, tissue == "Lung")$treated)
+wilcox.test(filter(select_tcga, tissue == "Stomach")$total_counts ~ filter(select_tcga, tissue == "Stomach")$treated)
+wilcox.test(filter(select_tcga, tissue == "Testis")$total_counts ~ filter(select_tcga, tissue == "Testis")$treated)
+```
+
+
+```{r}
+pairwise.wilcox.test(filter(thesis_graph_combined, source == "TCGA")$total_counts, filter(thesis_graph_combined, source == "TCGA")$tissue,
+                    p.adjust.method = "BH")
+
+
+```
+
+
+```{r}
+ggplot(tcga_ovary_df, aes(x = total_counts)) +
+  geom_histogram()
+ggplot(tcga_ovary_df, aes(x = log2(total_counts + 1))) +
+  geom_histogram()
+
+ggplot(gtex_ovary_df, aes(x = total_counts)) +
+  geom_histogram()
+ggplot(gtex_ovary_df, aes(x = log2(total_counts + 1))) +
+  geom_histogram()
+
+t.test(mutate(tcga_ovary_df, log2_total_counts = log2(total_counts))$log2_total_counts, mutate(gtex_ovary_df, log2_total_counts = log2(total_counts))$log2_total_counts, var.equal = FALSE)
+t.test(mutate(tcga_ovary_df, log2_total_counts = log2(total_counts + 1))$log2_total_counts, mutate(gtex_ovary_df, log2_total_counts = log2(total_counts + 1))$log2_total_counts, var.equal = FALSE)
+```
+```{r}
+combined_df %>%
+  filter(source = "TCGA") %>%
+  
+```
+
+
+
+
+-normality check for total_counts data
+```{r}
+excel_known.df$total_counts <- rowSums(excel_known.df)
+excel_known.df
+#visually check normality
+#density plot - want bell shape - definitely not bell shape
+ggdensity(excel_known.df$total_counts)
+#qq plot - correlation between sample and ditrib - wants points to fall on line - they're actually close
+ggqqplot(excel_known.df$total_counts)
+
+#visual checks aren't that great - let's do analysis
+shapiro.test(excel_known.df$total_counts)
+#get p = 0.3679 > 0.05 - assume normality
+#let's do a variance test: known and potential fusions
+
+known.sum <- c(excel_known.df$total_counts)
+potential.sum <- c(potentialbb.df$total_counts)
+tcga.sum <- c(tcga_ovary_df$total_counts)
+gtex.sum <- c(gtex_ovary_norm_df$total_counts)
+var.test(known.sum, potential.sum, var.equal = TRUE) #p=0.008 <0.05 - variances not equal
+```
+
+
+```{r}
+tcga_ovary_df
+ggdensity(tcga_ovary_df[-c(1:3),]$total_counts) #definitely not bell
+ggqqplot(tcga_ovary_df$total_counts) #most on line but some massive outliers
+ggqqplot(tcga_ovary_df[-c(1:3),]$total_counts)
+shapiro.test(tcga_ovary_df[-c(1:3),]$total_counts) #p very very close to 0 < 0.05 - not normal data  - could be because of large sample size - anything becomes significant
+```
+
+
+
+```{r}
+potentialbb.df <- tcga_ovary_df[c("rail_60851", "rail_63388", "rail_62767", "rail_68551", "rail_64510"),]
+potentialbb.df
+ggdensity(potentialbb.df$total_counts) #wave like known
+ggqqplot(potentialbb.df$total_counts) #pretty close to line
+shapiro.test(potentialbb.df$total_counts) #p=0.15 > 0.05 - normal
+
+gtex_ovary_norm_df$total_counts <- rowSums(gtex_ovary_norm_df[1:29])
+gtex_ovary_norm_df
+ggdensity(gtex_ovary_norm_df$total_counts) #skewed bell
+ggqqplot(gtex_ovary_norm_df$total_counts) #fairly close to line
+shapiro.test(gtex_ovary_norm_df$total_counts) # p < 0.05 - probably because lots of samples - anything significant then
+
+#make some vectors
+known.one <- c(excel_known.df$one)
+potential.one <- c(potentialbb.df$one)
+tcga.one <- c(tcga_ovary_df$one)
+gtex.one <- c(gtex_ovary_norm_df$one)
+
+known.two <- c(excel_known.df$two)
+potential.two <- c(potentialbb.df$two)
+tcga.two <- c(tcga_ovary_df$two)
+gtex.two <- c(gtex_ovary_norm_df$two)
+
+var.test(known.one, potential.one, var.equal = TRUE) #var equal
+var.test(known.two, potential.two, var.equal = TRUE)
+```
+
+let's to a t test - well the non-parametric one because it failed that
+-sum: potential and known
+```{r}
+t.test(known.sum, potential.sum, var.equal = FALSE) #p=0.28
+```
+p = 0.28 > 0.05 - not significant 
+this is good, this is what we wanted
+means difference in means is not significant
+
+t.test(x,y)
+t.test(response, explanatory)
+x-y=0
+x-y>0 - then x>y 
+
+difference in means not 0. greater: difference in means >0, less: difference in means <0
+```{r}
+t.test(known.sum, gtex.sum, var.equal = FALSE, alternative = "greater") #p=0.21 greater = 0.1, less=0.89
+```
+
+```{r}
+t.test(potential.sum, gtex.sum, var.equal = FALSE, alternative = "greater") #p=0.06, greater =0.03 I wonder if it would be significant if I just used the 2 main ones?
+
+t.test(potential.sum, tcga.sum, var.equal = FALSE, alternative = "greater") # p=0.03, greater = 0.019- good, the potential fusions are signif different from tcga
+```
+-this is good
+signif potential > gtex (0.03)
+signif potential > tcga (0.019)
+so more signif with tcga
+tcga < gtex < potential
+-can officially say yes, these samples are significantly overexpressed 
+
+```{r}
+t.test(tcga.sum, gtex.sum, var.equal = FALSE, alternative = "less") #p=2.2e-16, greater=1, less=2.2e-16
+```
+
+-this says gtex sum > tcga sum
+-I guess this makes sense in the whole lots of mutations and looks like lots of exon skipping in tcga - so overall - sum is less
+
+
+
+#nothing significant for comparing exon 1
+-most importantly - there's no significant difference in mean for exon 1 between gtex and tcga, and potential - though potential was close 0.11 - might be significant if I only use the 2 most important samples?
+```{r}
+t.test(known.one, potential.one, var.equal = FALSE) #p=0.4 - good not signif
+t.test(known.one, gtex.one, var.equal = FALSE, alternative = "less") #p=0.5 - sad not signif - closer when alt = greater p=0.2, alt=less p=0.7
+t.test(known.one, tcga.one, var.equal = FALSE, alternative = "less") #p=0.5 - not good, alt = greater p=0.2, less=0.7
+t.test(tcga.one, gtex.one, var.equal = FALSE, alternative = "less") #p=0.9, alt greater=0.54, less = 0.45
+t.test(potential.one, gtex.one, var.equal = FALSE, alternative = "greater") #p=0.2, greater=0.1134, less=0.88
+t.test(potential.one, tcga.one, var.equal = FALSE, alternative = "less") #p=0.2, greater =0.11, less=0.88
+```
+
+
+#interesting stuff for exon 2
+gtex - tcga >0 significant  - meaning: tcga exon 2 < gtex exon 2 on average
+this - asides from the total sum - is the significant difference between the normal and cancer data
+so focus significance wise should be on non-coding exon 2 - as long as what I learn from Liz doesn't contradict it
+
+potential - gtex >0 signfic : gtex < potential
+potential - tcga >0 signif: tcga < potential  - but more signif than (potential - gtex) >0
+
+so I could order it:   tcga < gtex < potential which feels odd but we'll see
+I think I need to do the 2 known liver cancer ones against liver cancer and liver gtex to properly compare
+```{r}
+t.test(known.two, potential.two, var.equal = FALSE) #p=0.8 - good
+t.test(known.two, gtex.two, var.equal = FALSE, alternative = "less") #p=0.2, greater =0.11, less =0.8
+t.test(known.two, tcga.two, var.equal = FALSE, alternative = "less") # p=0.2, greater =0.11, less=0.89
+t.test(tcga.two, gtex.two, var.equal = FALSE, alternative = "less") #p=0.0001 - signif, greater=0.999, less=9.59e-05#interesting
+t.test(potential.two, gtex.two, var.equal = FALSE, alternative = "greater") #p=0.02, greater = 0.01, less=0.98
+t.test(potential.two, tcga.two, var.equal = FALSE, alternative = "greater") #p=0.0095, greater = 0.0095, less=0.99
+```
+
+
+#weird
+weird that the known fusions - one and two vs the sum isn't significantly different
+```{r}
+t.test(gtex.one, gtex.sum, var.equal = FALSE) #very signif 2.2e-16
+t.test(tcga.one, tcga.sum, var.equal = FALSE) #same
+
+t.test(known.one, known.sum, var.equal = FALSE) #p=0.194 
+t.test(potential.one, potential.sum, var.equal = FALSE) #p=0.02
+
+t.test(gtex.two, gtex.sum, var.equal = FALSE) #very signif
+t.test(tcga.two, tcga.sum, var.equal = FALSE) #same
+
+t.test(known.two, known.sum, var.equal = FALSE) #p=0.194
+t.test(potential.two, potential.sum, var.equal = FALSE) #p=0.03
+
+t.test(gtex.one, gtex.two, var.equal = FALSE, alternative = "less") #2.629e-07, greater=1, less=1.315e-07
+t.test(tcga.one, tcga.two, var.equal = FALSE, alternative = "less") #0.0189, greater =0.99, less=0.009
+t.test(known.one, known.two, var.equal = FALSE, alternative = "less") #0.22, greater =0.88, less=0.11
+t.test(potential.one, potential.two, var.equal = FALSE, alternative = "less") #0.022, greater =0.989, less=0.011
+```
+
+
+```{r}
+sd(potential.one)
+shapiro.test(potential.one) #normal
+shapiro.test(log10(potential.one))
+shapiro.test(sqrt(potential.one))
+shapiro.test(tcga.one)
+shapiro.test(sqrt(tcga.one))
+shapiro.test(asin(tcga.one))
+```
+
+
+```{r}
+ggdensity(potential.one) #not quite bell
+ggdensity(log10(potential.one))
+ggqqplot(potential.one) #close ish to the line
+ggqqplot(log10(potential.one))
+ggdensity(tcga.one) #defs not bell
+ggdensity(log10(tcga.one))
+ggqqplot(tcga.one) #far from line
+ggqqplot(log10(tcga.one))
+```
+
+
+
+#let's try z test for tcga and gtex - because so many samples
+
+```{r}
+library(BSDA)
+```
+it wants populations standard deviation going to have to add summary stats to my stuff
+except maybe z test isn't right because I'm not taking a random sample from the population - this is the population?
+-or maybe - can do one and two and use total sum sd? - because technically they're samples from the population
+-or should I do some ratio stuff?
+```{r}
+z.test(gtex.sum, tcga.sum, sigma.x = 117.9125, sigma.y = 128.3139)
+z.test(tcga.sum, gtex.sum, sigma.x = 128.3139, sigma.y = 117.9125, alternative = "less") #get same p value as done on t test
+```
+
+```{r}
+sd(gtex.sum) #117.9125
+sd(gtex.one) #0.5999231
+sd(gtex.two) #0.9500454
+
+sd(tcga.sum) #128.3139
+sd(tcga.one) #0.8187869
+sd(tcga.two) #1.255165
+```
+
+
+```{r}
+#this is gross
+#something is wrong because all these columns have different numbers of samples so they shouldn't do that
+#oh once it runs out of samples it just repeats it - gross
+#don't think I need this I think I can do it without
+stats_exon_sums_df <- data.frame(excel_known.df$total_counts, potentialbb.df$total_counts, tcga_ovary_df$total_counts, gtex_ovary_norm_df$total_counts)
+colnames(stats_exon_sums_df) <- c("known_fusions", "potential_fusions", "tcga", "gtex")
+stats_exon_sums_df
+```
+
+
+
+```{r}
+treatment.na_df <- tcga_ovary_df[is.na(tcga_ovary_df$treatment),]
+treated_df <- tcga_ovary_df[!is.na(tcga_ovary_df$treatment),]
+
+t.test(potential.one, treatment.na_df$one, var.equal = FALSE, alternative = "less") #p=0.29, greater=0.15, less=0.85
+
+t.test(treated_df$one, treatment.na_df$one, var.equal = FALSE, alternative = "less") #p=0.38, greater = 0.81, less=0.19
+```
+
+looks like google recommends mann-whitney u test - does not assume normality (is a non-parametric test)
+http://www.r-tutor.com/elementary-statistics/non-parametric-methods/mann-whitney-wilcoxon-test
+
+```{r}
+wilcox.test(potential.one, gtex.one, alternative = "less") #p=0.1015, greater=0.05077, less=0.9507
+wilcox.test(potential.one, tcga.one, alternative = "less") #p=0.0551, greater =0.02755, less=0.9727
+wilcox.test(tcga.one, gtex.one, alternative = "less") #p=0.0573, greater=0.9714, less=0.02865
+wilcox.test(known.one, gtex.one, alternative = "less") #p=0.3105, greater=0.1552, less=0.8492
+wilcox.test(known.one, tcga.one, alternative = "less") #p=0.1686, greater=0.08428, less=0.9165
+wilcox.test(potential.one, known.one) #p=0.5714 - good
+```
+-interesting - so tcga.one < gtex.one is stat signif
+stat signif as well is that potential.one > tcga.one
+-this I didn't expect
+and close to being signif is potential.one > gtex.one
+
+```{r}
+wilcox.test(potential.sum, known.sum) #p=0.1429 -ooh close but still ok -non-signif - but comparing these 2 I think a t test is fine
+wilcox.test(known.sum, gtex.sum, alternative = "greater") #p=0.003316 greater=0.001658
+wilcox.test(potential.sum, gtex.sum, alternative = "greater") #p=0.0008688, greater=0.0004344
+wilcox.test(known.sum, tcga.sum, alternative = "greater") #p=0.002935, greater=0.001467
+wilcox.test(potential.sum, tcga.sum, alternative = "greater") #p=0.0001514, greater=7.569e-05
+```
+
+```{r}
+wilcox.test(tcga.two, gtex.two, alternative = "less") #p=7.475e-10, greater=1, less=3.737e-10
+wilcox.test(potential.two, gtex.two, alternative = "less") #p=0.0002214, greater=0.0001107, less=0.99
+wilcox.test(potential.two, tcga.two, alternative = "greater") #p=0.0001294, greater=6.469e-05
+wilcox.test(potential.two, known.two, alternative = "greater") #p=1, greater=0.5
+wilcox.test(known.two, gtex.two, alternative = "greater") #greater=0.002773
+wilcox.test(known.two, tcga.two, alternative = "greater") #greater=0.001739
+```
+-interesting - seems like exon 2 is really where the change happens
+
+```{r}
+wilcox.test(treated_df$total_counts, treatment.na_df$total_counts, alternative = "less") #p=0.5216, greater=0.7396, less=0.2608
+wilcox.test(potential.one, treated_df$one, alternative = "less") #p=0.049, greater=0.02454, less=0.9757
+wilcox.test(potential.one, treatment.na_df$one, alternative = "less") #warning - can't compute with ties p=0.1763, greater=0.08816, less=0.9177
+wilcox.test(treated_df$one, treatment.na_df$one, alternative = "less") #p=0.1578, greater=0.9213, less=0.07891
+wilcox.test(treated_df$one, gtex.one, alternative = "less") #p=0.03512, greater=0.9825, less=0.01756
+wilcox.test(treatment.na_df$one, gtex.one, alternative = "less") #p=0.8947, greater=0.4474, less=0.5544
+wilcox.test(treated_df$total_counts, gtex.sum, alternative = "less") #p<2.2e-16, greater=1, less<2.2e-16
+wilcox.test(treatment.na_df$total_counts, gtex.sum, alternative = "less") #p=1.193e-11, greater=1, less=5.967e-12
+```
+
+
+#summary: tests that came up with stat signif results / showed things I wanted
+-need to keep in mind that not everything that's statistically significant is biologically significant - and by using non-parametric tests it's not the best measure
+-all comparisons potential and known (double sided) non significant - this was as expected
+-for others - interested in directional tests: want to know which is larger - normal, cancer, known, potential
+```{r}
+#TCGA AND GTEX SIGNIF RESULTS
+t.test(tcga.sum, gtex.sum, var.equal = FALSE, alternative = "less") #less p<2.2e-16
+t.test(tcga.two, gtex.two, var.equal = FALSE, alternative = "less") #less p=9.59e-05
+```
+-interesting: comparing exon 1 between tcga and gtex - not significant 
+-comparing exon 2: tcga < gtex to very high significance
+
+```{r}
+t.test(potential.one, gtex.one, var.equal = FALSE, alternative = "greater") #p=0.2, greater=0.1134
+t.test(potential.one, tcga.one, var.equal = FALSE, alternative = "less") #p=0.2, greater =0.11
+t.test(potential.one[1:2], gtex.one, var.equal = FALSE, alternative = "greater") #very much non-signif
+t.test(potential.one[1:2], tcga.one, var.equal = FALSE) #p=0.7373, greater=0.6375, less=0.3687
+potential.one[1:2]
+potentialbb.df
+```
+-exon 1 expression is almost significant - interesting because it's greater - could be because only a couple of samples? 
+-could try it again with only the 2 most interesting samples - see if it changes - actually got less significant - funny though because the p values flipped around
+-maybe a z test would be more appropriate here? - especially with tcga because it's samples out of that population?
+-except we can't do a z test because the data isn't normal - despite central limit theorem
+
+-perhaps exon 1 change is significant when comparing the potential to untreated tcga? - that would be awesome
+
+
+```{r}
+treatment.na_df <- tcga_ovary_df[is.na(tcga_ovary_df$treatment),]
+treated_df <- tcga_ovary_df[!is.na(tcga_ovary_df$treatment),]
+
+t.test(potential.one, treatment.na_df$one, var.equal = FALSE, alternative = "less") #p=0.29, greater=0.15, less=0.85
+
+t.test(treated_df$one, treatment.na_df$one, var.equal = FALSE, alternative = "less") #p=0.38, greater = 0.81, less=0.19
+```
+
+looks like google recommends mann-whitney u test - does not assume normality (is a non-parametric test)
+http://www.r-tutor.com/elementary-statistics/non-parametric-methods/mann-whitney-wilcoxon-test
+
+```{r}
+wilcox.test(potential.one, gtex.one, alternative = "less") #p=0.1015, greater=0.05077, less=0.9507
+wilcox.test(potential.one, tcga.one, alternative = "less") #p=0.0551, greater =0.02755, less=0.9727
+wilcox.test(tcga.one, gtex.one, alternative = "less") #p=0.0573, greater=0.9714, less=0.02865
+wilcox.test(known.one, gtex.one, alternative = "less") #p=0.3105, greater=0.1552, less=0.8492
+wilcox.test(known.one, tcga.one, alternative = "less") #p=0.1686, greater=0.08428, less=0.9165
+wilcox.test(potential.one, known.one) #p=0.5714 - good
+```
+-interesting - so tcga.one < gtex.one is stat signif
+stat signif as well is that potential.one > tcga.one
+-this I didn't expect
+and close to being signif is potential.one > gtex.one
+
+```{r}
+wilcox.test(potential.sum, known.sum) #p=0.1429 -ooh close but still ok -non-signif - but comparing these 2 I think a t test is fine
+wilcox.test(known.sum, gtex.sum, alternative = "greater") #p=0.003316 greater=0.001658
+wilcox.test(potential.sum, gtex.sum, alternative = "greater") #p=0.0008688, greater=0.0004344
+wilcox.test(known.sum, tcga.sum, alternative = "greater") #p=0.002935, greater=0.001467
+wilcox.test(potential.sum, tcga.sum, alternative = "greater") #p=0.0001514, greater=7.569e-05
+```
+
+```{r}
+wilcox.test(tcga.two, gtex.two, alternative = "less") #p=7.475e-10, greater=1, less=3.737e-10
+wilcox.test(potential.two, gtex.two, alternative = "less") #p=0.0002214, greater=0.0001107, less=0.99
+wilcox.test(potential.two, tcga.two, alternative = "greater") #p=0.0001294, greater=6.469e-05
+wilcox.test(potential.two, known.two, alternative = "greater") #p=1, greater=0.5
+wilcox.test(known.two, gtex.two, alternative = "greater") #greater=0.002773
+wilcox.test(known.two, tcga.two, alternative = "greater") #greater=0.001739
+```
+-interesting - seems like exon 2 is really where the change happens
+tcga < gtex - stat signif
+potential > tcga and gtex
+more signif with tcga - makes sense if tcga < gtex - bigger move
+interesting that potential = known - p is 1 and one sided is 0.5
+
+```{r}
+wilcox.test(treated_df$total_counts, treatment.na_df$total_counts, alternative = "less") #p=0.5216, greater=0.7396, less=0.2608
+wilcox.test(potential.one, treated_df$one, alternative = "less") #p=0.049, greater=0.02454, less=0.9757
+wilcox.test(potential.one, treatment.na_df$one, alternative = "less") #warning - can't compute with ties p=0.1763, greater=0.08816, less=0.9177
+wilcox.test(treated_df$one, treatment.na_df$one, alternative = "less") #p=0.1578, greater=0.9213, less=0.07891
+wilcox.test(treated_df$one, gtex.one, alternative = "less") #p=0.03512, greater=0.9825, less=0.01756
+wilcox.test(treatment.na_df$one, gtex.one, alternative = "less") #p=0.8947, greater=0.4474, less=0.5544
+wilcox.test(treated_df$total_counts, gtex.sum, alternative = "less") #p<2.2e-16, greater=1, less<2.2e-16
+wilcox.test(treatment.na_df$total_counts, gtex.sum, alternative = "less") #p=1.193e-11, greater=1, less=5.967e-12
+```
+
+potential one > treated one - signif
+treated one < gtex one - signif
+(un treated and gtex not signif)
+treated total < gtex total - signif
+
+
+
+```{r}
+tcga_normalised_df
+combined_df
+```
+
+
+
+
+
+
+
+#4/6
+
+```{r}
+hist(tcga_ovary_df$total_counts)
+hist(gtex_ovary_df$total_counts)
+```
+
+```{r}
+tcga_ovary_df %>%
+  ggplot(aes(total_counts)) +
+  geom_histogram() +
+  geom_vline(xintercept = mean(tcga_ovary_df$total_counts),        # Add line for mean
+             col = "red",
+             lwd = 1) +
+geom_vline(xintercept = median(tcga_ovary_df$total_counts),      # Add line for median
+             col = "blue",
+             lwd = 1)
+
+gtex_ovary_df %>%
+  ggplot(aes(total_counts)) +
+  geom_histogram() +
+  geom_vline(xintercept = mean(gtex_ovary_df$total_counts),        # Add line for mean
+             col = "red",
+             lwd = 1) +
+geom_vline(xintercept = median(gtex_ovary_df$total_counts),      # Add line for median
+             col = "blue",
+             lwd = 1)
+```
+
+so not much of a difference between mean and median
+shows outliers nicely though
+
+just want to find a statistical test that will tell me if there's a correlation between low exon 1 and high total expression
+
+```{r}
+#mu and sigma here is the tcga ovary mean and sd
+#z score - how far is observation from mean
+#positive z means greater
+#technically data is non normal so z not really appropriate, but have more than enough samples - though group is less so again not quite right test
+z.test(tcga_ovary_df[c(1:3),31], mu = 0.247, sigma.x = 0.427) #p <2.2e-16, z = 18.241
+
+z.test(tcga_ovary_df[c(1:3),1], mu = 0.0014, sigma.x = 0.0023) # p= 0.004775, z = 2.8218
+sd(tcga_ovary_df[,1])
+```
+
+
+
+
+```{r}
+sd(tcga_ovary_df[,31])
+```
+
+regression maybe? - because we think exon 1 expression affects total?
+total is dependent
+exon 1 is independent
+
+```{r}
+scatter.smooth(x=tcga_ovary_df$one, y=tcga_ovary_df$total_counts, main="Total ~ One")
+scatter.smooth(x=gtex_ovary_df$one, y=gtex_ovary_df$total_counts, main="Total ~ One")
+
+par(mfrow=c(1, 2))  # divide graph area in 2 columns
+boxplot(tcga_ovary_df$one, main="One", sub=paste("Outlier rows: ", boxplot.stats(tcga_ovary_df$one)$out))  # box plot for 'speed'
+boxplot(tcga_ovary_df$total_counts, main="Total", sub=paste("Outlier rows: ", boxplot.stats(tcga_ovary_df$total_counts)$out))  # box plot for 'distance'
+```
+
+https://rcompanion.org/handbook/F_12.html
+
+```{r}
+if(!require(psych)){install.packages("psych")}
+if(!require(mblm)){install.packages("mblm")}
+if(!require(quantreg)){install.packages("quantreg")}
+if(!require(rcompanion)){install.packages("rcompanion")}
+if(!require(mgcv)){install.packages("mgcv")}
+if(!require(lmtest)){install.packages("lmtest")}
+if(!require(Rfit)){install.packages("Rfit")}
+```
+
+```{r}
+library(psych)
+library(mblm)
+library(quantreg)
+library(rcompanion)
+library(mgcv)
+library(lmtest)
+library(Rfit)
+```
+
+```{r}
+library(mblm)
+```
+
+
+```{r}
+model.k = mblm(total_counts ~ one,
+               data=tcga_ovary_df)
+
+summary(model.k)
+
+model.g = mblm(total_counts ~ one,
+               data=gtex_ovary_df)
+
+summary(model.g)
+```
+
+#quantile regression
+oh didn't realise I've done that before
+```{r}
+library(quantreg)
+
+model.q = rq(total_counts ~ one,
+             data = tcga_ovary_df,
+             tau = 0.9) #tau = 0.5 - median
+
+summary(model.q)
+
+#to get p value
+model.null = rq(total_counts ~ 1,
+                data = tcga_ovary_df,
+                tau = 0.9)
+
+anova(model.q, model.null)
+
+#get pseudo r squared
+library(rcompanion)
+
+nagelkerke(model.q)
+
+#don't fully understand the quantile regression stuff but I think I like it?? - because I am more interested in the expressed stuff
+```
+
+
+```{r}
+#plot
+plot(total_counts ~ one,
+     data = tcga_ovary_df,
+     pch  = 16)
+
+abline(model.q,
+       col="blue",
+       lwd=2)
+
+library(rcompanion)
+
+Pvalue = anova(model.q, model.null)[[1]][1,4]
+Intercept = as.numeric(summary(model.q)$coefficients[1,1])
+Slope     = as.numeric(summary(model.q)$coefficients[2,1])
+R2     = nagelkerke(model.q)[[2]][3,1]
+
+t1     = paste0("p-value: ", signif(Pvalue, digits=3))
+t2     = paste0("R-squared: ", signif(R2, digits=3))
+t3     = paste0("Intercept: ", signif(coefficients(model.q)[1], digits=3))
+t4     = paste0("Slope: ", signif(coefficients(model.q)[2], digits=3))
+
+text(1160, 2600, labels = t1, pos=4)
+text(1160, 2500, labels = t2, pos=4)
+text(1160, 2400, labels = t3, pos=4)
+text(1160, 2300, labels = t4, pos=4)
+```
+
+ahhhh i don't know what I'm doing with these stats
+because it's the outliers that are interesting
+I suppose this graph is good because it shows super clearly the general trend and the outliers
+need to explain to Alicia why I like one on x and total on y - because idea is that exon 1 expression affects total - and explanatory goes on x response on y
+maybe if I can add another thing of treated or not treated - multivariable see what that does
+but yeah linear regression I don't think really works
+and yes z score did show difference so I think can use that and outlier stuff to show it's different
+
+
+
+https://statsandr.com/blog/outliers-detection-in-r/#statistical-tests
+#there are outlier tests
+once again they assume normality
+but also screw that I got lots of samples
+```{r}
+install.packages("outliers")
+library(outliers)
+```
+
+Grubbs test: - detect if highest or lowest in set is an outlier, default performed on highest
+H0: highest is not an outlier
+H1: highest is an outlier
+
+```{r}
+grubbs.test(tcga_ovary_df$total_counts) #yep outlier
+grubbs.test(tcga_ovary_df$one, opposite = TRUE) #highest one is outlier, lowest is not outlier
+```
+
+Dixons test - best for small sample sizes < 25
+
+Rosner's test: can detect multiple outliers at once, best for large datasets
+```{r}
+install.packages("EnvStats")
+library(EnvStats)
+```
+
+```{r}
+rosner <- rosnerTest(tcga_ovary_df$total_counts, k = 10)
+rosner$all.stats
+
+#so thought this test was good but actually it says the top 6 results are outliers - I think it's the log transformation that really shows the main ones
+```
+
+
+
