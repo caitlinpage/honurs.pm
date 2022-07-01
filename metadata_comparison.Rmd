@@ -1,0 +1,28 @@
+---
+title: "Metadata comparison"
+output: html_notebook
+---
+
+
+
+```{r}
+cancer_types_old <- alt_ovary_df
+cancer_types_old$gdc_cases.project.primary_site <- colData$gdc_cases.project.primary_site
+cancer_types_old$cgc_case_primary_site <- colData$cgc_case_primary_site
+cancer_types_old$xml_tumor_tissue_site <- colData$xml_tumor_tissue_site
+cancer_types_old[41:43]
+filter(cancer_types_old, gdc_cases.project.primary_site != "Ovary")
+filter(cancer_types_old, cgc_case_primary_site != "Ovary")
+filter(cancer_types_old, xml_tumor_tissue_site != "Ovary")
+```
+cancer type
+gdc_cases.project.name
+gdc_cases.tissue_source_site.project
+cgc_case_histological_diagnosis
+xml_histological_type
+
+tissue
+gdc_cases.project.primary_site
+cgc_case_primary_site
+xml_tumor_tissue_site
+
